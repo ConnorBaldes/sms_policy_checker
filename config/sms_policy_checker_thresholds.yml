@@ -1,0 +1,29 @@
+# Thresholds for SmsPolicyCheckerService
+# See README.md Section 8.
+
+# General threshold above which a message is flagged as :fail in full_analysis mode,
+# if no critical or Layer 1 early exit occurs.
+# (README Section 6.1, 6.3.b)
+FINAL_THRESHOLD_FLAG: 0.75
+
+# Threshold for Layer 1 only fallback mode.
+# (README Section 7)
+FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK: 0.75 # Can be same or different from above
+
+# Critical Failure definitions for Layer 2 analysis.
+# If a policy_category_score from Layer 2 meets or exceeds its threshold,
+# it's a critical failure.
+# (README Section 6.3.a)
+CRITICAL_FAILURE_THRESHOLDS:
+  "PhishingAndDeceptiveURLs": 0.95 # Note: Name matches 'name' in llm_config.yml
+  "HatefulContent": 0.95
+  # "Illegal Content" - This needs a specific characteristic name from llm_config.yml
+  # Example: If you have a characteristic named "IllegalActivitiesPromotion"
+  "IllegalActivitiesPromotion": 0.98 # Placeholder, ensure this matches a defined LLM characteristic name
+  "SHAFT_Firearms_IllegalPromotion": 0.95
+  "SHAFT_Sex_AdultContent": 0.98 # Assuming this maps to the explicit/illegal aspect
+  "FraudulentOrMaliciousContent": 0.95
+
+# Placeholder for any other thresholds if needed
+# OTHER_THRESHOLDS:
+#   some_other_value: 0.5

@@ -1,0 +1,87 @@
+# Configuration for Layer 2 LLM Policy Characteristics
+# See README.md Section 8 and 5.1.1.
+#
+# characteristics:
+#   - name: (String) e.g., PhishingAndDeceptiveURLs
+#     description: (String) For documentation
+#     knowledge_source_context: (String) Curated text snippet for LLM context
+#     relevancy_skip_conditions: (Array of Hashes, Optional)
+#       - type: "skip_if_no_urls"
+#       - type: "skip_if_no_specific_entities"
+#         entity_type: "DRUG" # Example for specific entity type
+#     prompt_template: (String) Template for the Gemini prompt.
+#                      Use placeholders like %{message_body}, %{policy_context_snippet}, etc.
+#                      Ensure it asks for JSON output with confidence_score and rationale.
+
+characteristics:
+  - name: "PhishingAndDeceptiveURLs"
+    description: "Focuses on attempts to fraudulently obtain sensitive information or use of misleading/harmful URLs."
+    knowledge_source_context: >
+      Phishing is any attempt to deceptively acquire sensitive information such as usernames,
+      passwords, credit card details, or other personal data. Messages containing links that
+      mislead users about their destination, or links to sites known for malware or social
+      engineering, are prohibited. (Source: Twilio AUP, Carrier Policies)
+    relevancy_skip_conditions:
+      - type: "skip_if_no_urls" # Skip LLM call if no URLs are found in the message
+    prompt_template: | # Using YAML literal style for multi-line string
+      Analyze the following SMS message content and associated information for '%{characteristic_name}' indicators.
+      Message Body: '%{message_body}'
+      Associated URL Signals (SafeBrowse): %{safe_browse_results}
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Based on all the above, assess the likelihood that this message constitutes a violation
+      of the '%{characteristic_name}' policy.
+
+      Provide your response STRICTLY as a JSON object with two keys:
+      1. "confidence_score": A float between 0.0 (no confidence of violation) and 1.0 (high confidence of violation).
+      2. "rationale": A brief textual explanation for your score.
+
+  - name: "HatefulContent"
+    description: "Screens for content promoting hate, discrimination, disparagement, or violence against protected groups."
+    knowledge_source_context: >
+      Content that promotes, incites, or facilitates hate speech, violence, discrimination,
+      harassment, or disparagement on the basis of race, ethnicity, nationality, religion,
+      gender, sexual orientation, disability, or any other protected characteristic is strictly
+      prohibited. (Source: Twilio AUP, SHAFT-H policies)
+    # relevancy_skip_conditions: None defined here, so always considered relevant for LLM if Layer 1 passes.
+    prompt_template: |
+      Analyze the following SMS message content and associated information for '%{characteristic_name}' indicators.
+      Message Body: '%{message_body}'
+      Associated Tone/Sentiment Signals (Perspective API): %{perspective_scores}
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Based on all the above, assess the likelihood that this message constitutes a violation
+      of the '%{characteristic_name}' policy.
+
+      Provide your response STRICTLY as a JSON object with two keys:
+      1. "confidence_score": A float between 0.0 (no confidence of violation) and 1.0 (high confidence of violation).
+      2. "rationale": A brief textual explanation for your score.
+
+  # ... Add definitions for all 19 characteristics from README Section 5.1.1 ...
+
+  - name: "RegulatedPharmaceuticals_PrescriptionOffers"
+    description: "Identifies offers for prescription medications or other regulated pharmaceuticals."
+    knowledge_source_context: >
+      The unsolicited promotion or sale of prescription drugs or federally regulated pharmaceuticals
+      is prohibited. Messages must comply with all applicable laws regarding pharmaceutical advertising.
+      (Source: Carrier Policies, FDA guidelines)
+    relevancy_skip_conditions:
+      - type: "skip_if_no_specific_entities"
+        entity_type: "CONSUMER_GOOD" # Assuming NL API might tag drugs as CONSUMER_GOOD or a more specific type like 'DRUG' if available
+        # Note: Entity types from Google NL API need to be mapped carefully.
+        # Might need to check for multiple entity types or refine this condition.
+    prompt_template: |
+      Analyze the following SMS message content for '%{characteristic_name}' indicators.
+      Message Body: '%{message_body}'
+      Detected Entities (Cloud NL API): %{nl_entities}
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Based on the message and detected entities (especially any drug names), assess if this message
+      violates the '%{characteristic_name}' policy.
+
+      Provide your response STRICTLY as a JSON object with two keys:
+      1. "confidence_score": A float between 0.0 (no confidence of violation) and 1.0 (high confidence of violation).
+      2. "rationale": A brief textual explanation for your score.

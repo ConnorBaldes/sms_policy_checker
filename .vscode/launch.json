@@ -1,0 +1,52 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "rdbg",
+            "name": "Debug Rails server",
+            "request": "launch",
+            "command": "bin/rails",
+            "script": "server",
+            "args": [
+                "-p",
+                "3000"
+            ], // Optional: specify port
+            "useBundler": true,
+            "askParameters": false, // Set to true to be prompted for script and args
+            "env": {
+                "RUBY_DEBUG_OPEN": "true"
+            } // Important for attaching
+        },
+        {
+            "type": "rdbg",
+            "name": "Attach to rdbg",
+            "request": "attach"
+        },
+        {
+            "type": "rdbg",
+            "name": "Debug current RSpec file",
+            "request": "launch",
+            "command": "bundle",
+            "script": "exec",
+            "args": [
+                "rspec",
+                "${file}"
+            ],
+            "useBundler": true,
+            "askParameters": false
+        },
+        {
+            "type": "rdbg",
+            "name": "Debug RSpec line",
+            "request": "launch",
+            "command": "bundle",
+            "script": "exec",
+            "args": [
+                "rspec",
+                "${file}:${lineNumber}"
+            ],
+            "useBundler": true,
+            "askParameters": false
+        }
+    ]
+}
