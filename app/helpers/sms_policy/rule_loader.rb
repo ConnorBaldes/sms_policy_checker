@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'yaml'
-require 'regexp-examples' # May not be needed if regexes are directly provided
+require "yaml"
 
 module SmsPolicy
   # == SmsPolicy::RuleLoader
@@ -23,30 +22,30 @@ module SmsPolicy
     #   its `patterns` replaced with `compiled_patterns` (an array of `Regexp` objects).
     # @raise [StandardError] if YAML parsing fails or rule structure is invalid.
     def self.load_rules(yaml_content)
-      raw_rules = YAML.safe_load(yaml_content, permitted_classes: [Symbol]) # Add other classes if needed
+      raw_rules = YAML.safe_load(yaml_content, permitted_classes: [ Symbol ]) # Add other classes if needed
       raise "Invalid YAML or empty ruleset" unless raw_rules.is_a?(Array)
 
       raw_rules.map do |rule_def|
         validate_rule_definition!(rule_def) # Ensure essential keys exist
 
-        compiled_patterns = (rule_def['patterns'] || []).map do |pattern_str|
-          case rule_def['type']&.downcase
-          when 'keyword'
+        compiled_patterns = (rule_def["patterns"] || []).map do |pattern_str|
+          case rule_def["type"]&.downcase
+          when "keyword"
             # Convert keyword to a case-insensitive, whole-word matching regex
             # Escapes special characters in the keyword itself.
             # /\bkeyword\b/i
             Regexp.new("\\b#{Regexp.escape(pattern_str)}\\b", Regexp::IGNORECASE)
-          when 'regex'
+          when "regex"
             # Compile user-provided regex string.
             # Assumes case-insensitivity by default as per README,
             # but users can use inline modifiers.
             Regexp.new(pattern_str, Regexp::IGNORECASE) # Or just Regexp.new(pattern_str) if no default flags
           else
-            raise "Invalid rule type: '#{rule_def['type']}' for rule '#{rule_def['name']}'. Must be 'keyword' or 'regex'."
+            raise "Invalid rule type: '#{rule_def["type"]}' for rule '#{rule_def["name"]}'. Must be 'keyword' or 'regex'."
           end
         end.compact
 
-        rule_def.merge('compiled_patterns' => compiled_patterns)
+        rule_def.merge("compiled_patterns" => compiled_patterns)
       end
     rescue Psych::SyntaxError => e
       raise "Failed to parse Layer 1 rules YAML: #{e.message}"
@@ -63,17 +62,17 @@ module SmsPolicy
       missing_keys = required_keys.reject { |key| rule_def.key?(key) }
 
       unless missing_keys.empty?
-        raise "Invalid rule definition for '#{rule_def['name'] || 'Unnamed rule'}'. Missing keys: #{missing_keys.join(', ')}"
+        raise "Invalid rule definition for '#{rule_def["name"] || 'Unnamed rule'}'. Missing keys: #{missing_keys.join(', ')}"
       end
 
-      if rule_def['is_early_exit_rule'] && !rule_def.key?('early_exit_threshold')
-        raise "Rule '#{rule_def['name']}' is an early_exit_rule but missing 'early_exit_threshold'."
+      if rule_def["is_early_exit_rule"] && !rule_def.key?("early_exit_threshold")
+        raise "Rule '#{rule_def["name"]}' is an early_exit_rule but missing 'early_exit_threshold'."
       end
 
-      unless rule_def['individual_confidence'].is_a?(Numeric) &&
-             rule_def['individual_confidence'] >= 0.0 &&
-             rule_def['individual_confidence'] <= 1.0
-        raise "Rule '#{rule_def['name']}' has invalid 'individual_confidence': #{rule_def['individual_confidence']}. Must be float 0.0-1.0."
+      unless rule_def["individual_confidence"].is_a?(Numeric) &&
+             rule_def["individual_confidence"] >= 0.0 &&
+             rule_def["individual_confidence"] <= 1.0
+        raise "Rule '#{rule_def["name"]}' has invalid 'individual_confidence': #{rule_def["individual_confidence"]}. Must be a number between 0.0 and 1.0 inclusive."
       end
     end
   end

@@ -22,7 +22,7 @@ characteristics:
       mislead users about their destination, or links to sites known for malware or social
       engineering, are prohibited. (Source: Twilio AUP, Carrier Policies)
     relevancy_skip_conditions:
-      - type: "skip_if_no_urls" # Skip LLM call if no URLs are found in the message
+      - type: "skip_if_no_urls"
     prompt_template: | # Using YAML literal style for multi-line string
       Analyze the following SMS message content and associated information for '%{characteristic_name}' indicators.
       Message Body: '%{message_body}'
@@ -30,12 +30,9 @@ characteristics:
       Policy Context for %{characteristic_name}:
       "%{policy_context_snippet}"
 
-      Based on all the above, assess the likelihood that this message constitutes a violation
-      of the '%{characteristic_name}' policy.
-
-      Provide your response STRICTLY as a JSON object with two keys:
-      1. "confidence_score": A float between 0.0 (no confidence of violation) and 1.0 (high confidence of violation).
-      2. "rationale": A brief textual explanation for your score.
+      Based on all the above, assess the likelihood that this message violates
+      the '%{characteristic_name}' policy and provide a confidence score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment.
 
   - name: "HatefulContent"
     description: "Screens for content promoting hate, discrimination, disparagement, or violence against protected groups."
@@ -54,10 +51,6 @@ characteristics:
 
       Based on all the above, assess the likelihood that this message constitutes a violation
       of the '%{characteristic_name}' policy.
-
-      Provide your response STRICTLY as a JSON object with two keys:
-      1. "confidence_score": A float between 0.0 (no confidence of violation) and 1.0 (high confidence of violation).
-      2. "rationale": A brief textual explanation for your score.
 
   # ... Add definitions for all 19 characteristics from README Section 5.1.1 ...
 
@@ -81,7 +74,3 @@ characteristics:
 
       Based on the message and detected entities (especially any drug names), assess if this message
       violates the '%{characteristic_name}' policy.
-
-      Provide your response STRICTLY as a JSON object with two keys:
-      1. "confidence_score": A float between 0.0 (no confidence of violation) and 1.0 (high confidence of violation).
-      2. "rationale": A brief textual explanation for your score.

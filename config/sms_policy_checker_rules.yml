@@ -14,8 +14,8 @@
   description: "Detects unambiguously explicit sexual terms."
   type: "keyword"
   patterns:
-    - "hardcore sex"
-    - "explicit video"
+    - 'hardcore sex'
+    - 'explicit video'
     # ... more highly specific and unambiguous terms
   mapped_policy_category: "SHAFT-Sex"
   individual_confidence: 1.0
@@ -26,7 +26,7 @@
   description: "Detects the use of common, free public URL shorteners."
   type: "regex"
   patterns:
-    - "(bit\\.ly|tinyurl\\.com|goo\\.gl|t\\.co|is\\.gd|ow\\.ly)\\/[a-zA-Z0-9]+"
+    - '(?:https?:\/\/)?(?:www\.)?(bit\.ly|tinyurl\.com|goo\.gl|t\.co|is\.gd|ow\.ly)\/[a-zA-Z0-9]+'
     # Add more shortener domains as needed
   mapped_policy_category: "Prohibited-URL-Shortener"
   individual_confidence: 0.90
@@ -37,7 +37,7 @@
   description: "Detects excessive use of uppercase letters."
   type: "regex"
   patterns:
-    - "(?:[A-Z]\\s*){15,}" # 15 or more capital letters, possibly with spaces
+    - '(?:[A-Z]\\s*){15,}' # 15 or more capital letters, possibly with spaces
   mapped_policy_category: "Content-Evasion-Spam"
   individual_confidence: 0.70
   is_early_exit_rule: false

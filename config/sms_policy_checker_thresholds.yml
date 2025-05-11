@@ -8,7 +8,7 @@ FINAL_THRESHOLD_FLAG: 0.75
 
 # Threshold for Layer 1 only fallback mode.
 # (README Section 7)
-FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK: 0.75 # Can be same or different from above
+FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK: 0.70 # Can be same or different from above
 
 # Critical Failure definitions for Layer 2 analysis.
 # If a policy_category_score from Layer 2 meets or exceeds its threshold,
@@ -17,6 +17,7 @@ FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK: 0.75 # Can be same or different from above
 CRITICAL_FAILURE_THRESHOLDS:
   "PhishingAndDeceptiveURLs": 0.95 # Note: Name matches 'name' in llm_config.yml
   "HatefulContent": 0.95
+  "SHAFT_Sex_AdultContent": 0.98
   # "Illegal Content" - This needs a specific characteristic name from llm_config.yml
   # Example: If you have a characteristic named "IllegalActivitiesPromotion"
   "IllegalActivitiesPromotion": 0.98 # Placeholder, ensure this matches a defined LLM characteristic name

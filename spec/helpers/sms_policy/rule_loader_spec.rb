@@ -14,7 +14,9 @@ RSpec.describe SmsPolicy::RuleLoader do
           - name: "L1_KEYWORD_TEST"
             description: "Test keyword rule"
             type: "keyword"
-            patterns: ["secret word", "another phrase"]
+            patterns:
+              - 'secret word'
+              - 'another phrase'
             mapped_policy_category: "TestCategory"
             individual_confidence: 0.9
             is_early_exit_rule: true
@@ -22,7 +24,9 @@ RSpec.describe SmsPolicy::RuleLoader do
           - name: "L1_REGEX_TEST"
             description: "Test regex rule"
             type: "regex"
-            patterns: ["^\\d{3}-\\d{3}-\\d{4}$", "pattern_two"]
+            patterns:
+              - '^\\d{3}-\\d{3}-\\d{4}$'
+              - 'pattern_two'
             mapped_policy_category: "TestDataFormat"
             individual_confidence: 0.7
             is_early_exit_rule: false
@@ -107,7 +111,7 @@ RSpec.describe SmsPolicy::RuleLoader do
           - name: "L1_INCOMPLETE"
             description: "Missing type"
             # type: "keyword" # Missing type
-            patterns: ["test"]
+            patterns: ['test']
             mapped_policy_category: "Category"
             individual_confidence: 0.5
             is_early_exit_rule: false
@@ -121,7 +125,7 @@ RSpec.describe SmsPolicy::RuleLoader do
           - name: "L1_BAD_TYPE"
             description: "Invalid type"
             type: "unknown_type"
-            patterns: ["test"]
+            patterns: ['test']
             mapped_policy_category: "Category"
             individual_confidence: 0.5
             is_early_exit_rule: false
@@ -135,7 +139,7 @@ RSpec.describe SmsPolicy::RuleLoader do
           - name: "L1_MISSING_THRESHOLD"
             description: "Early exit but no threshold"
             type: "keyword"
-            patterns: ["test"]
+            patterns: ['test']
             mapped_policy_category: "Category"
             individual_confidence: 0.9
             is_early_exit_rule: true
@@ -150,7 +154,7 @@ RSpec.describe SmsPolicy::RuleLoader do
           - name: "L1_BAD_CONFIDENCE"
             description: "Bad confidence value"
             type: "keyword"
-            patterns: ["test"]
+            patterns: ['test']
             mapped_policy_category: "Category"
             individual_confidence: 1.5 # Invalid
             is_early_exit_rule: false
@@ -204,6 +208,25 @@ RSpec.describe SmsPolicy::RuleLoader do
         else
           # Skip or pending if the rule is not in the file, to avoid test brittleness
           # pending "L1_PUBLIC_URL_SHORTENER rule not found in fixture for detailed check."
+        end
+      end
+    end
+
+    context 'when loading the actual project configuration file' do
+      let(:actual_rules_yaml_content) { File.read(Rails.root.join('config', 'sms_policy_checker_rules.yml')) }
+
+      it 'loads and compiles without error' do
+        expect { described_class.load_rules(actual_rules_yaml_content) }.not_to raise_error
+      end
+
+      it 'produces an array of hashes with compiled_patterns' do
+        loaded_rules = described_class.load_rules(actual_rules_yaml_content)
+        expect(loaded_rules).to be_an(Array)
+        loaded_rules.each do |rule|
+          expect(rule).to be_a(Hash)
+          expect(rule).to have_key('compiled_patterns')
+          expect(rule['compiled_patterns']).to be_an(Array)
+          rule['compiled_patterns'].each { |p| expect(p).to be_a(Regexp) }
         end
       end
     end

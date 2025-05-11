@@ -1,5 +1,33 @@
 # SMS Message Policy Checker: Design and Implementation Details
 
+
+
+# Trial Project: SMS Message Policy Checker
+
+## Project Directory
+```bash
+sms_policy_checker_app/
+├── app/
+│   ├── services/
+│   │   └── sms_policy_checker_service.rb  # Main service object
+│   ├── helpers/
+│   │   └── sms_policy/
+│   │       └── rule_loader.rb             # Helper for loading Layer 1 rules
+│   └── clients/                           # API client wrappers
+│       └── google/
+│           ├── gemini_client.rb
+│           ├── safe_browse_client.rb
+│           ├── perspective_client.rb
+│           └── nl_client.rb
+├── config/
+│   ├── initializers/
+│   │   └── sms_policy_checker_config.rb   # To load YAML configs on boot
+│   ├── sms_policy_checker_rules.yml       # Layer 1 rules
+│   ├── sms_policy_checker_llm_config.yml  # Layer 2 LLM characteristics and prompts
+│   └── sms_policy_checker_thresholds.yml  # Various decision thresholds
+└── README.md
+```
+
 ## 1. Project Goal & Overview
 
 The primary goal of the `SmsPolicyCheckerService` is to analyze SMS message content *before* it is sent via Twilio, identify potential policy violations that could lead to carrier filtering (specifically Twilio error 30007), and provide structured feedback. This service aims to reduce message blocking by flagging problematic content related to phishing, SHAFT (Sex, Hate, Alcohol, Firearms, Tobacco), misleading sender information, and other carrier or Twilio policy violations.

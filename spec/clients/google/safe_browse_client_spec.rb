@@ -1,103 +1,129 @@
-# frozen_string_literal: true
-
-require 'rails_helper' # Or 'spec_helper'
-# require_relative '../../../app/clients/google/safe_browse_client'
+# spec/clients/google/safe_browse_client_spec.rb
+require 'rails_helper'
+require_relative '../../../app/clients/google/safe_browse_client'
 
 RSpec.describe Google::SafeBrowseClient do
-  let(:api_key) { 'test_safebrowse_api_key' }
-  let(:client) { described_class.new(api_key: api_key) }
-  let(:base_url) { "https://safeBrowse.googleapis.com/v4" }
-  let(:threat_matches_endpoint) { "#{base_url}/threatMatches:find" }
+  # --- Get the API key ONCE when the describe block is loaded ---
+  # This ensures we capture it after dotenv has hopefully done its job.
+  THE_VALID_API_KEY_FOR_TESTS = ENV['GOOGLE_API_KEY']
 
-  describe '#find_threat_matches' do
-    let(:urls_to_check) { ["http://example.com/bad", "http://example.org/alsobad"] }
-    let(:client_info) { { clientId: "your-company-name", clientVersion: "1.0.0" } } # From client skeleton
-    let(:threat_types) { ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"] }
-    let(:platform_types) { ["ANY_PLATFORM"] }
-    let(:threat_entry_types) { ["URL"] }
+  let(:client_with_valid_key) { described_class.new(api_key: THE_VALID_API_KEY_FOR_TESTS) }
+  let(:invalid_api_key) { "DEFINITELY_INVALID_API_KEY_FOR_TESTING" }
+  let(:client_with_invalid_key) { described_class.new(api_key: invalid_api_key) }
+  let(:client_with_nil_key) { described_class.new(api_key: nil) }
 
-    let(:expected_request_body) do
-      {
-        client: client_info,
-        threatInfo: {
-          threatTypes: threat_types,
-          platformTypes: platform_types,
-          threatEntryTypes: threat_entry_types,
-          threatEntries: urls_to_check.map { |url| { url: url } }
-        }
-      }.to_json
+  let(:malware_url) { "http://malware.testing.google.test/testing/malware/" }
+  let(:social_engineering_url) { "http://testsafeBrowse.appspot.com/s/phishing.html" }
+  let(:unwanted_software_url) { "http://unwanted.testing.google.test/testing/unwanted/" }
+  let(:safe_url) { "https://www.google.com" }
+
+  # This before block is just a warning for the developer, not a test itself.
+  before(:all) do
+    # Print only if the constant ended up being nil/empty
+    unless THE_VALID_API_KEY_FOR_TESTS && !THE_VALID_API_KEY_FOR_TESTS.empty?
+      puts "\n\n[TEST SUITE WARNING] GOOGLE_API_KEY was not captured correctly at load time for SafeBrowseClient specs. It was '#{THE_VALID_API_KEY_FOR_TESTS}'. Live API tests requiring a valid key will be skipped or fail.\n\n"
+    end
+  end
+
+  describe '#find_threat_matches', :live_api do
+    context 'when API key is explicitly nil or empty string (handled by client before API call)' do
+
+      it 'returns an error structure for nil API key without making an API call' do
+        # Allow the initialize warning to occur without fuss
+        allow(Rails.logger).to receive(:warn).with("Google::SafeBrowseClient initialized without a valid API key. Real API calls will fail or be rejected.")
+
+        # Now specifically expect the warning from the method call
+        expect(Rails.logger).to receive(:warn).with("Google::SafeBrowseClient: API key is missing. Cannot make API call.").at_least(:once)
+
+        expect(client_with_nil_key.connection).not_to receive(:post)
+        result = client_with_nil_key.find_threat_matches([safe_url])
+        expect(result).to eq({ "matches" => [], "error" => "API key missing" })
+      end
+
+      it 'returns an error structure for an empty string API key without making an API call' do
+        client_with_empty_key = described_class.new(api_key: "")
+        expect(Rails.logger).to receive(:warn).with("Google::SafeBrowseClient: API key is missing. Cannot make API call.").at_least(:once)
+        expect(client_with_empty_key.connection).not_to receive(:post)
+        result = client_with_empty_key.find_threat_matches([safe_url])
+        expect(result).to eq({ "matches" => [], "error" => "API key missing" })
+      end
     end
 
-    let(:mock_api_response_with_matches) do
-      {
-        "matches" => [
-          { "threatType" => "SOCIAL_ENGINEERING", "platformType" => "ANY_PLATFORM", "threat" => { "url" => urls_to_check.first } },
-          { "threatType" => "MALWARE", "platformType" => "WINDOWS", "threat" => { "url" => urls_to_check.last } }
-        ]
-      }
-    end
-    let(:mock_api_response_no_matches) { {} } # Empty object for no matches as per API docs
+    context 'when a truly invalid API key is used (testing real API error response)' do
+      it 'returns a hash containing the specific API error message from Google' do
+        # Allow any error logging to occur, we'll verify the returned error.
+        # If you want to be strict, you can refine these logger expectations.
+        allow(Rails.logger).to receive(:error) # Allow any error logs for now
 
-    context 'when the API call is successful and finds matches' do
+        result = client_with_invalid_key.find_threat_matches([malware_url])
+
+        expect(result).to be_a(Hash)
+        expect(result["matches"]).to eq([])
+        expect(result["error"]).to be_a(String)
+        expect(result["error"].downcase).to include("api key not valid. please pass a valid api key.")
+      end
+    end
+
+    # The following tests require a VALID API key to be set in ENV['GOOGLE_API_KEY']
+    # They will be skipped if the key is not present to avoid false failures.
+    describe 'with a valid API key' do
       before do
-        stub_request(:post, threat_matches_endpoint)
-          .with(query: { key: api_key }, body: expected_request_body)
-          .to_return(status: 200, body: mock_api_response_with_matches.to_json, headers: { 'Content-Type' => 'application/json' })
+        # Use the constant captured at load time
+        skip("GOOGLE_API_KEY is not properly set for these tests, skipping live API tests.") unless THE_VALID_API_KEY_FOR_TESTS && !THE_VALID_API_KEY_FOR_TESTS.empty?
       end
 
-      it 'makes a POST request to the Safe Browse API with correct parameters' do
-        pending "Implementation of client logic needed"
-        # client.find_threat_matches(urls_to_check)
-        # expect(a_request(:post, threat_matches_endpoint)
-        #   .with(query: { key: api_key }, body: expected_request_body))
-        #   .to have_been_made.once
-        raise NotImplementedError
+      context 'when checking a known malicious URL (malware)' do
+        it 'returns a threat match for malware' do
+          # client_with_valid_key is now used here
+          result = client_with_valid_key.find_threat_matches([ malware_url ])
+          expect(result["error"]).to be_nil, "Expected no error, but got: #{result['error']}. Full response: #{result.inspect}"
+          expect(result["matches"]).not_to be_empty, "Expected matches for malware URL, got empty. Full response: #{result.inspect}"
+          expect(result["matches"].any? { |m| m["threatType"] == "MALWARE" && m["threat"]["url"] == malware_url }).to be true
+        end
       end
 
-      it 'returns the parsed matches' do
-        pending "Implementation of client logic and response parsing needed"
-        # result = client.find_threat_matches(urls_to_check)
-        # expect(result).to eq(mock_api_response_with_matches)
-        raise NotImplementedError
-      end
-    end
-
-    context 'when the API call is successful and finds no matches' do
-      before do
-        stub_request(:post, threat_matches_endpoint)
-          .with(query: { key: api_key }, body: expected_request_body)
-          .to_return(status: 200, body: mock_api_response_no_matches.to_json, headers: { 'Content-Type' => 'application/json' })
+      context 'when checking a known malicious URL (social engineering)' do
+        it 'returns a threat match for social engineering' do
+          result = client_with_valid_key.find_threat_matches([ social_engineering_url ])
+          expect(result["error"]).to be_nil, "Expected no error, but got: #{result['error']}. Full response: #{result.inspect}"
+          expect(result["matches"]).not_to be_empty, "Expected matches for social engineering URL, got empty. Full response: #{result.inspect}"
+          expect(result["matches"].any? { |m| m["threatType"] == "SOCIAL_ENGINEERING" && m["threat"]["url"] == social_engineering_url }).to be true
+        end
       end
 
-      it 'returns an empty hash or structure indicating no matches' do
-        pending "Implementation of client logic needed"
-        # result = client.find_threat_matches(urls_to_check)
-        # expect(result).to eq(mock_api_response_no_matches) # Or specifically check for empty `matches` array if client normalizes
-        raise NotImplementedError
-      end
-    end
-
-
-    context 'when the list of URLs is empty' do
-      it 'returns an empty hash without making an API call' do
-        pending "Implementation of client pre-check needed"
-        # expect(client.find_threat_matches([])).to eq({})
-        # expect(a_request(:post, threat_matches_endpoint)).not_to have_been_made
-        raise NotImplementedError
-      end
-    end
-
-    context 'when the API returns an error' do
-      before do
-        stub_request(:post, threat_matches_endpoint)
-          .with(query: { key: api_key }, body: expected_request_body)
-          .to_return(status: 500, body: { error: { message: "Server error" } }.to_json, headers: { 'Content-Type' => 'application/json' })
+      context 'when checking a known safe URL' do
+        it 'returns no matches (empty "matches" array)' do
+          result = client_with_valid_key.find_threat_matches([safe_url])
+          expect(result["error"]).to be_nil, "Expected no error, but got: #{result['error']}. Full response: #{result.inspect}"
+          expect(result["matches"]).to be_an(Array), "Expected 'matches' to be an Array. Full response: #{result.inspect}"
+          expect(result["matches"]).to be_empty, "Expected no matches for safe URL, got: #{result.inspect}"
+        end
       end
 
-      it 'raises a StandardError (or custom error)' do
-        pending "Implementation of client error handling needed"
-        # expect { client.find_threat_matches(urls_to_check) }.to raise_error(StandardError, /API Error: 500 Internal Server Error/)
-        raise NotImplementedError
+      context 'when checking a mix of safe and unsafe URLs' do
+        it 'returns matches only for the unsafe URLs' do
+          result = client_with_valid_key.find_threat_matches([safe_url, unwanted_software_url, malware_url])
+          expect(result["error"]).to be_nil, "Expected no error, but got: #{result['error']}. Full response: #{result.inspect}"
+          expect(result["matches"].size).to eq(2), "Expected 2 matches, got: #{result["matches"].size}. Full response: #{result.inspect}"
+
+          has_uws = result["matches"].any? { |m| m["threatType"] == "UNWANTED_SOFTWARE" && m["threat"]["url"] == unwanted_software_url }
+          has_malware = result["matches"].any? { |m| m["threatType"] == "MALWARE" && m["threat"]["url"] == malware_url }
+
+          expect(has_uws).to be true, "Expected UNWANTED_SOFTWARE match not found. Got: #{result.inspect}"
+          expect(has_malware).to be true, "Expected MALWARE match not found. Got: #{result.inspect}"
+        end
+      end
+    end # end 'with a valid API key'
+
+    context 'when no URLs are provided' do
+      it 'returns an empty matches structure without making an API call' do
+        # This client instance would use the valid_api_key if set, or nil if not.
+        # The .connection method should exist on the client.
+        expect(client.connection).not_to receive(:post)
+
+        result = client.find_threat_matches([])
+        expect(result["matches"]).to be_empty
+        expect(result["error"]).to be_nil # No error should be reported by the client for this case
       end
     end
   end
