@@ -203,6 +203,47 @@ The `SmsPolicyCheckerService.call` method returns a comprehensive Ruby `Hash` (t
     - individual_confidence (Float): Confidence of this specific finding.
     - policy_category (String): Policy category this finding pertains to.
 
+<details>
+<summary><strong>Example message_analysis_report (Failure with Rewrite)</strong></summary>
+
+```ruby
+# This is a Ruby Hash representation
+{
+  result: :fail,
+  reason: "PhishingAndDeceptiveURLs", # Assuming this was the highest scoring L2 category above threshold
+  confidence: 0.98, # The score for "PhishingAndDeceptiveURLs"
+  rewrite_suggestion: {
+    "general_fix_suggestions" => "Avoid using link shorteners and ensure all links lead to trusted, clearly identifiable domains. State the purpose of the link clearly.",
+    "literal_rewrite" => "Please review your account details by logging into our official website at [yourcompany.com/account](https://yourcompany.com/account). For help, call 1-800-555-1234."
+  },
+  processing_mode: :full_analysis,
+  policy_category_scores: {
+    "ProhibitedPublicURLShorteners" => 1.0, # From Layer 1
+    "PhishingAndDeceptiveURLs" => 0.98    # From Layer 2
+    # ... other L2 categories might have scores here too
+  },
+  violation_details: [
+    {
+      layer: 1,
+      filter_type: "L1_PUBLIC_URL_SHORTENER_SEVERE",
+      description: "Detects the use of common, free public URL shorteners, strong phishing/spam indicator.",
+      matched_value: "bit.ly/example",
+      individual_confidence: 1.0,
+      policy_category: "ProhibitedPublicURLShorteners"
+    },
+    {
+      layer: 2,
+      filter_type: "Gemini:PhishingAndDeceptiveURLs",
+      description: "The message uses urgent language ('urgent action required') combined with a public URL shortener. SafeBrowse also flagged the effective destination of the shortener for SOCIAL_ENGINEERING.",
+      matched_value: "N/A", # Or could be message snippet if applicable
+      individual_confidence: 0.98,
+      policy_category: "PhishingAndDeceptiveURLs"
+    }
+    # ... other details if any
+  ]
+}
+```
+</details>
 
 
-&lt;<details> &lt;<summary>&lt;<strong>Example message_analysis_report (Failure with Rewrite)&lt;/<strong>&lt;<summary>
+
