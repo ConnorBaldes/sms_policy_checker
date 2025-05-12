@@ -1,7 +1,5 @@
 # Trial Project: SMS Message Policy Checker
 
-
-
 ## Context
 
 Our customers send short training messages to employees via SMS using Twilio. Sometimes, these messages get blocked due to Twilio error 30007 (carrier violation) -- usually caused by content that breaks Twilio or carrier rules. Even seemingly innocuous messages can sometimes run afoul of the rules.

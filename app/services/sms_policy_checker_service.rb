@@ -456,16 +456,25 @@ class SmsPolicyCheckerService
 
     # Defines the specific set of policy characteristics to be evaluated by the LLM.
     # These characteristics are based on the defined scope of policy coverage for this service.
-    # TODO: Consider if this list should be dynamically derived from config or remain hardcoded for this specific service's scope.
     characteristics_to_process_names = [
-      "MisleadingSenderIdentity", "FalseOrInaccurateContent", "HatefulContent",
-      "ServiceInterferenceOrFilterEvasion", "SHAFT_Sex_AdultContent",
-      "SHAFT_Alcohol_ProhibitedPromotion", "SHAFT_Firearms_IllegalPromotion",
-      "SHAFT_Tobacco_ProhibitedPromotion", "ProhibitedSubstances_CannabisCBDKratom",
-      "RegulatedPharmaceuticals_PrescriptionOffers", "FraudulentOrMaliciousContent",
-      "HighRiskFinancialServices", "ProhibitedAffiliateMarketing",
-      "RestrictedDebtCollection", "GetRichQuickSchemes", "GamblingPromotions",
-      "PhishingAndDeceptiveURLs", "ProhibitedPublicURLShorteners",
+      "MisleadingSenderIdentity",
+      "FalseOrInaccurateContent",
+      "HatefulContent",
+      "ServiceInterferenceOrFilterEvasion",
+      "SHAFT_Sex_AdultContent",
+      "SHAFT_Alcohol_ProhibitedPromotion",
+      "SHAFT_Firearms_IllegalPromotion",
+      "SHAFT_Tobacco_ProhibitedPromotion",
+      "ProhibitedSubstances_CannabisCBDKratom",
+      "RegulatedPharmaceuticals_PrescriptionOffers",
+      "FraudulentOrMaliciousContent",
+      "HighRiskFinancialServices",
+      "ProhibitedAffiliateMarketing",
+      "RestrictedDebtCollection",
+      "GetRichQuickSchemes",
+      "GamblingPromotions",
+      "PhishingAndDeceptiveURLs",
+      "ProhibitedPublicURLShorteners",
       "AdvancedContentEvasionTactics"
     ]
     characteristics_to_evaluate = all_characteristics.select { |c| characteristics_to_process_names.include?(c["name"]) }
