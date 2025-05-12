@@ -277,6 +277,7 @@ The `SmsPolicyCheckerService.call` method returns a comprehensive Ruby `Hash` (t
   ]
 }
 ```
+</details>
 
 ## Detailed Design and Processing Logic
 This section outlines the internal workings of the SmsPolicyCheckerService.
@@ -303,6 +304,7 @@ This section outlines the internal workings of the SmsPolicyCheckerService.
 - early_exit_threshold (Float): Confidence needed for an early exit rule to trigger.
 - **Runtime Processing:** Patterns are pre-compiled into Regexp objects at application boot by SmsPolicy::RuleLoader for efficient matching.
 </details>
+
 <details>
 <summary><strong>Illustrative Layer 1 Rule Examples (Conceptual)</strong></summary>
 
@@ -390,6 +392,7 @@ Signals from these APIs are gathered by SmsPolicyCheckerService and fed into Gem
 - Google Natural Language API (Google::NlClient): Entity extraction and text moderation scores. (Note: The original design mentioned Perspective API, but the implementation uses Cloud Natural Language API's moderateText feature, which provides similar signals.)
 
 These signals also inform relevancy checks for characteristics (e.g., skipping URL-based checks if no URLs are present). If an auxiliary API fails, it's noted in the prompt, and characteristics dependent on its data for relevancy checks default to being relevant.
+</details>
 
 <details>
 <summary><strong>Layer 2 Processing Algorithm</strong></summary>
