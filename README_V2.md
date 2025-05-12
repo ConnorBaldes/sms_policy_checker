@@ -156,30 +156,30 @@ The service is designed for single message processing. For high-volume screening
 The `SmsPolicyCheckerService.call` method returns a comprehensive Ruby `Hash` (the `message_analysis_report`).
 
 **Output Structure:** `message_analysis_report`
-- result (Symbol): Overall outcome. Either :pass or :fail.
-- reason (String): A human-readable explanation for the outcome. Examples:
-    - If Layer 2 failure: "PhishingAndDeceptiveURLs"
-    - If Layer 1 Early Exit: "Early Exit - Violation Category: [mapped_policy_category]"
-    - If Fallback L1 Early Exit: "Fallback: Early Exit - Violation Category: [mapped_policy_category]"
-    - If Fallback L1 Threshold Failure: "Fallback: Layer 1 Threshold Exceeded - Violation Category: [category]"
-    - If Pass: "Compliant" or "Fallback: Compliant."
-- confidence (Float): Score (0.0-1.0+) representing confidence in the violation if :fail, or the highest score observed if :pass (will be below the flagging threshold).
-- rewrite_suggestion (Hash | String | nil):
-    - Hash: If LLM deems correctable: { "general_fix_suggestions": String, "literal_rewrite": String }.
-    - String: If LLM deems uncorrectable: "This message cannot be made compliant due to: [reason]".
+- `result` (`Symbol`): Overall outcome. Either `:pass` or `:fail`.
+- `reason` (`String`): A human-readable explanation for the outcome. Examples:
+    - If Layer 2 failure: `"PhishingAndDeceptiveURLs"`
+    - If Layer 1 Early Exit: `"Early Exit - Violation Category: [mapped_policy_category]"`
+    - If Fallback L1 Early Exit: `"Fallback: Early Exit - Violation Category: [mapped_policy_category]"`
+    - If Fallback L1 Threshold Failure: `"Fallback: Layer 1 Threshold Exceeded - Violation Category: [category]"`
+    - If Pass: `"Compliant"` or `"Fallback: Compliant."`
+- `confidence` (`Float`): Score (0.0-1.0+) representing confidence in the violation if `:fail`, or the highest score observed if `:pass` (will be below the flagging threshold).
+- `rewrite_suggestion` (`Hash` | `String` | `nil`):
+    - `Hash`: If LLM deems correctable: `{ "general_fix_suggestions": String, "literal_rewrite": String }`.
+    - `String`: If LLM deems uncorrectable: `"This message cannot be made compliant due to: [reason]"`.
     - nil: If no suggestion is applicable/generated, or in fallback mode.
-- processing_mode (Symbol): :full_analysis or :fallback_layer1_only.
-- policy_category_scores (Hash): Scores for all assessed policy categories (e.g., {"PhishingAndDeceptiveURLs" => 0.98, "SHAFT_Sex_AdultContent" => 0.15}).
-- violation_details (Array<Hash>): List of all individual findings. Each detail hash includes:
-    - layer (Integer): 1 or 2.
-    - filter_type (String): Rule name (e.g., "L1_PUBLIC_URL_SHORTENER_SEVERE") or LLM analysis type (e.g., "Gemini:PhishingAndDeceptiveURLs", "API_FALLBACK:gemini_call_failed").
-    - description (String): Description of the finding or LLM rationale.
-    - matched_value (String | "N/A"): Specific text/URL matched by L1, or "N/A" for L2/fallback.
-    - individual_confidence (Float): Confidence of this specific finding.
-    - policy_category (String): Policy category this finding pertains to.
+- `processing_mode` (`Symbol`): `:full_analysis` or `:fallback_layer1_only`.
+- `policy_category_scores` (`Hash`): Scores for all assessed policy categories (e.g., `{"PhishingAndDeceptiveURLs" => 0.98, "SHAFT_Sex_AdultContent" => 0.15}`).
+- `violation_details` (`Array<Hash>`): List of all individual findings. Each detail hash includes:
+    - `layer` (`Integer`): `1` or `2`.
+    - `filter_type` (`String`): Rule name (e.g., `"L1_PUBLIC_URL_SHORTENER_SEVERE"`) or LLM analysis type (e.g., `"Gemini:PhishingAndDeceptiveURLs"`, `"API_FALLBACK:gemini_call_failed"`).
+    - `description` (`String`): Description of the finding or LLM rationale.
+    - `matched_value` (`String` | `"N/A"`): Specific text/URL matched by L1, or "N/A" for L2/fallback.
+    - `individual_confidence` (`Float`): Confidence of this specific finding.
+    - `policy_category` (`String`): Policy category this finding pertains to.
 
 <details>
-<summary><strong>Example message_analysis_report (Failure with Rewrite)</strong></summary>
+<summary><strong>Example `message_analysis_report` (Failure with Rewrite)</strong></summary>
 
 ```ruby
 # This is a Ruby Hash representation
@@ -221,7 +221,7 @@ The `SmsPolicyCheckerService.call` method returns a comprehensive Ruby `Hash` (t
 </details>
 
 <details>
-<summary><strong>Example message_analysis_report (Pass in Fallback)</strong></summary>
+<summary><strong>Example `message_analysis_report` (Pass in Fallback)</strong></summary>
 
 ```ruby
 # This is a Ruby Hash representation
@@ -257,116 +257,117 @@ The `SmsPolicyCheckerService.call` method returns a comprehensive Ruby `Hash` (t
 </details>
 
 ## Detailed Design and Processing Logic
-This section outlines the internal workings of the SmsPolicyCheckerService.
+This section outlines the internal workings of the `SmsPolicyCheckerService`.
 <details>
 <summary><strong>Layer 1: Rule-Based Pre-filters</strong></summary>
 
 **Purpose**
-- Rapid Detection: Quickly flag common, unambiguous violations using predefined keywords and regex.
-- Cost & Latency Optimization: Reduce calls to more expensive LLM services.
-- Standalone Fallback: Provide baseline screening if Layer 2 APIs are unavailable.
+- **Rapid Detection:** Quickly flag common, unambiguous violations using predefined keywords and regex.
+- **Cost & Latency Optimization:** Reduce calls to more expensive LLM services.
+- **Standalone Fallback:** Provide baseline screening if Layer 2 APIs are unavailable.
 
 **Implementation Details**
-- Configuration: Rules are in config/sms_policy_checker_rules.yml.
-- Rule Definition Structure (YAML):
-    - name (String): Unique ID (e.g., "L1_SHAFT_SEX_EXPLICIT_KEYWORD").
-    - description (String): Explanation.
-    - type (String): "keyword" or "regex".
-    - patterns (Array of Strings): Keywords or regex patterns.
-        - "keyword" type patterns are compiled into case-insensitive, whole-word matching regex (e.g., "Alert!" becomes /\bAlert!\b/i).
+- **Configuration:** Rules are in `config/sms_policy_checker_rules.yml`.
+- **Rule Definition Structure (YAML):**
+    - `name` (String): Unique ID (e.g., "L1_SHAFT_SEX_EXPLICIT_KEYWORD").
+    - `description` (String): Explanation.
+    - `type` (String): "keyword" or "regex".
+    - `patterns` (Array of Strings): Keywords or regex patterns.
+        - "keyword" type patterns are compiled into case-insensitive, whole-word matching regex (e.g., "Alert!" becomes `/\bAlert!\b/i`).
         - "regex" type patterns are compiled as Regexp objects, typically with case-insensitivity by default.
-- mapped_policy_category (String): Internal policy category (e.g., "SHAFT_Sex_AdultContent").
-- individual_confidence (Float): Score (0.0-1.0) for a match.
-- is_early_exit_rule (Boolean): If true, a high-confidence match stops processing and skips Layer 2.
-- early_exit_threshold (Float): Confidence needed for an early exit rule to trigger.
-- **Runtime Processing:** Patterns are pre-compiled into Regexp objects at application boot by SmsPolicy::RuleLoader for efficient matching.
+- `mapped_policy_category` (String): Internal policy category (e.g., "SHAFT_Sex_AdultContent").
+- `individual_confidence` (Float): Score (0.0-1.0) for a match.
+- `is_early_exit_rule` (Boolean): If true, a high-confidence match stops processing and skips Layer 2.
+- `early_exit_threshold` (Float): Confidence needed for an early exit rule to trigger.
+- **Runtime Processing:** Patterns are pre-compiled into `Regexp` objects at application boot by `SmsPolicy::RuleLoader` for efficient matching.
 </details>
 
 <details>
 <summary><strong>Illustrative Layer 1 Rule Examples (Conceptual)</strong></summary>
 
-(Note: Actual patterns are in sms_policy_checker_rules.yml. These are simplified examples of rule intent.)
+(Note: Actual patterns are in `sms_policy_checker_rules.yml`. These are simplified examples of rule intent.)
 
-1. Rule: L1_SHAFT_SEX_EXTREME_EXPLICIT_SEVERE
-    - Type: keyword, Confidence: 1.0, Early Exit: true (threshold 1.0)
+1. Rule: `L1_SHAFT_SEX_EXTREME_EXPLICIT_SEVERE`
+    - Type: `keyword`, Confidence: `1.0`, Early Exit: `true` (threshold `1.0`)
     - Detects unambiguous, severe explicit sexual terms (e.g., "child porn").
 
-2. Rule: L1_PUBLIC_URL_SHORTENER_SEVERE
-    - Type: regex, Confidence: 1.0, Early Exit: true (threshold 1.0)
+2. Rule: `L1_PUBLIC_URL_SHORTENER_SEVERE`
+    - Type: `regex`, Confidence: `1.0`, Early Exit: `true` (threshold `1.0`)
     - Detects common public URL shorteners (e.g., bit.ly, tinyurl.com).
-3. Rule: L1_PHISHING_IMMEDIATE_ACTION_WITH_LINK_HIGH_CONF (Example Name)
-    - Type: keyword (or regex combining keyword and URL presence)
+3. Rule: `L1_PHISHING_IMMEDIATE_ACTION_WITH_LINK_HIGH_CONF` (Example Name)
+    - Type: `keyword` (or `regex` combining keyword and URL presence)
     - Description: Detects urgency phrases with links (e.g., "account suspended click here").
-    - Confidence: 0.85, Early Exit: false.
-4. Rule: L1_EXCESSIVE_CAPITALIZATION_MODERATE
-    - Type: regex, Confidence: 0.70, Early Exit: false.
+    - Confidence: `0.85`, Early Exit: `false`.
+4. Rule: `L1_EXCESSIVE_CAPITALIZATION_MODERATE`
+    - Type: `regex`, Confidence: `0.70`, Early Exit: `false`.
     - Detects high ratio of uppercase letters.
 
-(Refer to config/sms_policy_checker_rules.yml for the complete and active set of L1 rules.)
+(Refer to `config/sms_policy_checker_rules.yml` for the complete and active set of L1 rules.)
 </details>
 
 <details>
 <summary><strong>Layer 1 Processing Algorithm</strong></summary>
 
-1. Initialize violation_details and policy_category_scores in the main message_analysis_report.
-2. Set processing_halted = false.
-3. For each loaded Layer 1 rule (with its pre-compiled Regexp objects in compiled_patterns):
-    - a. Iterate through each compiled_regex_pattern in the rule.
-    - b. If compiled_regex_pattern matches the message_body:
-        - i. Record the finding (layer 1, rule name, description, matched text, rule's individual_confidence, rule's mapped_policy_category) in violation_details.
-        - ii. Update policy_category_scores with the individual_confidence, taking the max if the category already has a score.
-        - iii.If rule['is_early_exit_rule'] is true AND rule['individual_confidence'] >= rule['early_exit_threshold']:
-            - 1. Set message_analysis_report.result = :fail.
-            - 2. Set message_analysis_report.confidence = rule['individual_confidence']. - 3. Set message_analysis_report.reason = "Early Exit - Violation Category: #{rule['mapped_policy_category']}".
-            - 4. Set processing_halted = true.
+1. Initialize `violation_details` and `policy_category_scores` in the main message_analysis_report.
+2. Set `processing_halted = false`.
+3. For each loaded Layer 1 `rule` (with its pre-compiled `Regexp` objects in `compiled_patterns`):
+    - a. Iterate through each `compiled_regex_pattern` in the rule.
+    - b. If `compiled_regex_pattern` matches the `message_body`:
+        - i. Record the finding (layer 1, rule name, description, matched text, rule's `individual_confidence`, rule's `mapped_policy_category`) in `violation_details`.
+        - ii. Update `policy_category_scores` with the `individual_confidence`, taking the max if the category already has a score.
+        - iii. If `rule['is_early_exit_rule']` is `true` AND `rule['individual_confidence'] >= rule['early_exit_threshold']`:
+            - 1. Set `message_analysis_report.result = :fail`.
+            - 2. Set `message_analysis_report.confidence = rule['individual_confidence']`.
+            - 3. Set `message_analysis_report.reason = "Early Exit - Violation Category: #{rule['mapped_policy_category']}"`.
+            - 4. Set `processing_halted = true`.
             - 5. Break from all L1 rule processing.
         - iv. Break from processing more patterns for the current rule (one match is enough).
-    - c. If processing_halted is true, break from the L1 rule loop.
+    - c. If `processing_halted` is `true`, break from the L1 rule loop.
 
-4. If processing_halted is true, Layer 2 analysis is skipped.
+4. If `processing_halted` is `true`, Layer 2 analysis is skipped.
 </details>
 
 <details>
-<summary><strong>Layer 2: Advanced LLM-Powered Analysis (Google Cloud Ecosystem)<strong></summary>
+<summary><strong>Layer 2: Advanced LLM-Powered Analysis (Google Cloud Ecosystem)</strong></summary>
 
 **Purpose**
 To perform deep, contextual analysis for messages not flagged by L1 early-exit rules, identifying nuanced violations against 19 policy characteristics.
 
 **Defined Layer 2 Policy Characteristics**
 The service assesses against characteristics like:
-- MisleadingSenderIdentity
-- FalseOrInaccurateContent
-- HatefulContent
-- ServiceInterferenceOrFilterEvasion
-- SHAFT_Sex_AdultContent
-- SHAFT_Alcohol_ProhibitedPromotion
-- SHAFT_Firearms_IllegalPromotion
-- SHAFT_Tobacco_ProhibitedPromotion
-- ProhibitedSubstances_CannabisCBDKratom
-- RegulatedPharmaceuticals_PrescriptionOffers
-- FraudulentOrMaliciousContent
-- HighRiskFinancialServices
-- ProhibitedAffiliateMarketing
-- RestrictedDebtCollection
-- GetRichQuickSchemes
-- GamblingPromotions
-- PhishingAndDeceptiveURLs
-- ProhibitedPublicURLShorteners
-- AdvancedContentEvasionTactics.
+- `MisleadingSenderIdentity`
+- `FalseOrInaccurateContent`
+- `HatefulContent`
+- `ServiceInterferenceOrFilterEvasion`
+- `SHAFT_Sex_AdultContent`
+- `SHAFT_Alcohol_ProhibitedPromotion`
+- `SHAFT_Firearms_IllegalPromotion`
+- `SHAFT_Tobacco_ProhibitedPromotion`
+- `ProhibitedSubstances_CannabisCBDKratom`
+- `RegulatedPharmaceuticals_PrescriptionOffers`
+- `FraudulentOrMaliciousContent`
+- `HighRiskFinancialServices`
+- `ProhibitedAffiliateMarketing`
+- `RestrictedDebtCollection`
+- `GetRichQuickSchemes`
+- `GamblingPromotions`
+- `PhishingAndDeceptiveURLs`
+- `ProhibitedPublicURLShorteners`
+- `AdvancedContentEvasionTactics`
 
 (Note: Categories requiring external message metadata like consent status are currently out of scope.)
 
 **Trigger Condition**
 Layer 2 executes if Layer 1 does not trigger an early exit.
 
-**Core Engine: Google Gemini API**(Google::GeminiClient)
+**Core Engine: Google Gemini API**(`Google::GeminiClient`)
 - For each relevant policy characteristic, Gemini is prompted to assess the message against that specific characteristic, considering the message text, curated policy context, and signals from auxiliary APIs.
-- Prompts instruct Gemini to return a JSON object with confidence_score (0.0-1.0) and rationale (text). This is enforced by responseSchema in the API call.
+- Prompts instruct Gemini to return a JSON object with `confidence_score` (0.0-1.0) and `rationale` (text). This is enforced by `responseSchema` in the API call.
 
 **Auxiliary APIs & Integration**
-Signals from these APIs are gathered by SmsPolicyCheckerService and fed into Gemini prompts:
-- Google Safe Browse API (Google::SafeBrowseClient): URL threat information.
-- Google Natural Language API (Google::NlClient): Entity extraction and text moderation scores. (Note: The original design mentioned Perspective API, but the implementation uses Cloud Natural Language API's moderateText feature, which provides similar signals.)
+Signals from these APIs are gathered by `SmsPolicyCheckerService` and fed into Gemini prompts:
+- Google Safe Browse API (`Google::SafeBrowseClient`): URL threat information.
+- Google Natural Language API (`Google::NlClient`): Entity extraction and text moderation scores. (Note: The original design mentioned Perspective API, but the implementation uses Cloud Natural Language API's `moderateText` feature, which provides similar signals.)
 
 These signals also inform relevancy checks for characteristics (e.g., skipping URL-based checks if no URLs are present). If an auxiliary API fails, it's noted in the prompt, and characteristics dependent on its data for relevancy checks default to being relevant.
 </details>
@@ -374,21 +375,21 @@ These signals also inform relevancy checks for characteristics (e.g., skipping U
 <details>
 <summary><strong>Layer 2 Processing Algorithm</strong></summary>
 
-1, Gather Auxiliary API Signals: Call Safe Browse (for URLs), NL API (entities, moderation) for the message_body. Store these results. If any of these crucial API calls fail in a way that triggers the handle_api_errors_and_fallback mechanism in SmsPolicyCheckerService, processing_mode is set to :fallback_layer1_only, and further L2 processing for characteristics is aborted.
+1, Gather Auxiliary API Signals: Call Safe Browse (for URLs), NL API (entities, moderation) for the `message_body`. Store these results. If any of these crucial API calls fail in a way that triggers the `handle_api_errors_and_fallback` mechanism in `SmsPolicyCheckerService`, `processing_mode` is set to `:fallback_layer1_only`, and further L2 processing for characteristics is aborted.
 
-2. For each configured Layer 2 policy characteristic (from sms_policy_checker_llm_config.yml):
+2. For each configured Layer 2 policy `characteristic` (from `sms_policy_checker_llm_config.yml`):
     - a. Determine Relevancy: Based on relevancy_skip_conditions in the characteristic's config and pre-fetched auxiliary signals (e.g., skip "PhishingAndDeceptiveURLs" if no URLs are in the message). If a characteristic is deemed not relevant, its assessment is skipped, and its score remains 0 or it's noted in violation details.
     - b. If relevant:
-        - i. Construct Prompt: Build a specific prompt for Gemini using the characteristic's prompt_template, knowledge_source_context, the message_body, and formatted summaries of the auxiliary API signals.
-        - ii. Call Gemini API: Send the prompt to Gemini, requesting a JSON response adhering to the schema: { "confidence_score": Number, "rationale": String }.
-        - iii.Handle API Errors: If the Gemini call fails (and triggers fallback via handle_api_errors_and_fallback), set processing_mode = :fallback_layer1_only and break from L2 characteristic processing.
-        - iv. Parse Response: Extract confidence_score and rationale from Gemini's JSON response.
-        - v. Record Finding: Add a violation_detail (layer 2, type "Gemini:[CharacteristicName]", Gemini's rationale, Gemini's score, the characteristic name as policy_category).
-        - vi. Update Scores: Update policy_category_scores for this characteristic with Gemini's score (taking the max if already present, though for L2 each characteristic is distinct).
-        - vii.Critical L2 Check: If the confidence_score for this characteristic meets or exceeds its threshold defined in CRITICAL_FAILURE_THRESHOLDS (from sms_policy_checker_thresholds.yml):
-            - 1. Set message_analysis_report.result = :fail.
-            - 2. Set message_analysis_report.confidence = [Gemini's score].
-            - 3. Set message_analysis_report.reason = [CharacteristicName].
+        - i. **Construct Prompt:** Build a specific prompt for Gemini using the characteristic's `prompt_template`, `knowledge_source_context`, the `message_body`, and formatted summaries of the auxiliary API signals.
+        - ii. **Call Gemini API:** Send the prompt to Gemini, requesting a JSON response adhering to the schema: `{ "confidence_score": Number, "rationale": String }`.
+        - iii. **Handle API Errors:** If the Gemini call fails (and triggers fallback via `handle_api_errors_and_fallback`), set `processing_mode = :fallback_layer1_only` and break from L2 characteristic processing.
+        - iv. **Parse Response:** Extract `confidence_score` and `rationale` from Gemini's JSON response.
+        - v. **Record Finding:** Add a `violation_detail` (layer 2, type "Gemini:[CharacteristicName]", Gemini's rationale, Gemini's score, the characteristic name as `policy_category`).
+        - vi. **Update Scores:** Update `policy_category_scores` for this characteristic with Gemini's score (taking the max if already present, though for L2 each characteristic is distinct).
+        - vii. **Critical L2 Check:** If the `confidence_score` for this characteristic meets or exceeds its threshold defined in `CRITICAL_FAILURE_THRESHOLDS` (from `sms_policy_checker_thresholds.yml`):
+            - 1. Set `message_analysis_report.result = :fail`.
+            - 2. Set `message_analysis_report.confidence = [Gemini's score]`.
+            - 3. Set `message_analysis_report.reason = [CharacteristicName]`.
             - 4. Break from processing further L2 characteristics (critical failure found).
 
 3. If a critical L2 failure occurred, proceed to overall algorithm step 5 (Rewrite).
@@ -397,77 +398,79 @@ These signals also inform relevancy checks for characteristics (e.g., skipping U
 <details>
 <summary><strong>Final Decision Logic & Overall Algorithm (Simplified)</strong></summary>
 
-1. Initialize Report: Defaults to result: :pass, processing_mode: :full_analysis.
-2. Run Layer 1:
-    - If L1 early exit occurs: result, reason, confidence are set. Skip to step 4 (Rewrite).
-3. Run Layer 2 (if no L1 early exit and not already in fallback):
+1. **Initialize Report:** Defaults to `result: :pass`, `processing_mode: :full_analysis`.
+2. **Run Layer 1:**
+    - If L1 early exit occurs: `result`, `reason`, `confidence` are set. Skip to step 4 (Rewrite).
+3. **Run Layer 2 (if no L1 early exit and not already in fallback):**
     - Process each relevant characteristic.
-    - If handle_api_errors_and_fallback is triggered during L2 setup or a Gemini call:
-        - processing_mode becomes :fallback_layer1_only.
+    - If `handle_api_errors_and_fallback` is triggered during L2 setup or a Gemini call:
+        - `processing_mode` becomes `:fallback_layer1_only`.
         - L2 characteristic loop is exited.
         - The final result will be determined based only on L1 scores as per Fallback Mode logic (see below). Skip to step 4 (Rewrite, which will be skipped in fallback).
 - If a critical L2 failure occurs (characteristic score >= its critical threshold):
-    - result, reason, confidence are set. Skip to step 4 (Rewrite).
-- If L2 completes without critical failures or API-triggered fallback:
-    - Calculate max_observed_score from all policy_category_scores (L1 non-early-exit + L2).
-    - Set report.confidence = max_observed_score.
-    - If max_observed_score >= FINAL_THRESHOLD_FLAG (from thresholds.yml):
-        - report.result = :fail, report.reason = [category_with_max_score].
+    - `result`, `reason`, `confidence` are set. Skip to step 4 (Rewrite).
+- **If L2 completes without critical failures or API-triggered fallback:**
+    - Calculate `max_observed_score` from all `policy_category_scores` (L1 non-early-exit + L2).
+    - Set `report.confidence = max_observed_score`.
+    - If `max_observed_score >= FINAL_THRESHOLD_FLAG` (from `thresholds.yml`):
+        - `report.result = :fail`, `report.reason = [category_with_max_score]`.
     - Else:
-        - report.result = :pass, report.reason = "Compliant".
-4. Message Rewrite Suggestion:
-- Attempted if report.result == :fail AND report.processing_mode == :full_analysis.
+        - `report.result = :pass`, `report.reason = "Compliant"`.
+4. **Message Rewrite Suggestion:**
+- Attempted if `report.result == :fail` AND `report.processing_mode == :full_analysis`.
 - Calls Gemini with a specific prompt to get a fix or an "uncorrectable" assessment.
-- Populates report.rewrite_suggestion with Hash, String, or nil.
+- Populates `report.rewrite_suggestion` with Hash, String, or `nil`.
 
-5. Return message_analysis_report.
+5. Return `message_analysis_report`.
 </details>
 
 <details>
 <summary><strong>Fallback Mode: API Unavailability</strong></summary>
 
-- Trigger: Persistent failures in essential Layer 2 API calls (Gemini, or auxiliary APIs if their failure prevents L2 from proceeding meaningfully). The handle_api_errors_and_fallback method in SmsPolicyCheckerService manages this transition.
+- **Trigger:** Persistent failures in essential Layer 2 API calls (Gemini, or auxiliary APIs if their failure prevents L2 from proceeding meaningfully). The `handle_api_errors_and_fallback` method in `SmsPolicyCheckerService` manages this transition.
 
 - Behavior:
-    1. message_analysis_report.processing_mode is set to :fallback_layer1_only.
+    1. `message_analysis_report.processing_mode` is set to `:fallback_layer1_only`.
     2. Layer 2 processing for characteristics stops.
-    3. rewrite_suggestion will be nil.
+    3. `rewrite_suggestion` will be `nil`.
     4. Final decision is based solely on Layer 1 findings:
-        - L1 Early Exit (already handled): If an L1 early exit rule triggered before the API failure, its outcome stands, but the reason string will include "Fallback:" prefix if the fallback mode was set prior to the L1 reason being finalized. (The SmsPolicyCheckerService logic ensures reason strings reflect the mode).
-        - L1 Threshold Assessment (if no L1 early exit):
-            - Let max_l1_score be the highest score from L1 violation_details.
-            - If max_l1_score >= FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK (from thresholds.yml):
-                - result = :fail, confidence = max_l1_score.
-                - reason = "Fallback: Layer 1 Threshold Exceeded - Violation Category: [category_of_max_l1_rule]".
+        - **L1 Early Exit (already handled):** If an L1 early exit rule triggered before the API failure, its outcome stands, but the reason string will include "Fallback:" prefix if the fallback mode was set prior to the L1 reason being finalized. (The `SmsPolicyCheckerService` logic ensures reason strings reflect the mode).
+        - **L1 Threshold Assessment (if no L1 early exit):**
+            - Let `max_l1_score` be the highest score from L1 `violation_details`.
+            - If `max_l1_score >= FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK` (from `thresholds.yml`):
+                - `result = :fail`, `confidence = max_l1_score`.
+                - `reason = "Fallback: Layer 1 Threshold Exceeded - Violation Category: [category_of_max_l1_rule]"`.
             - Else:
-                - result = :pass, confidence = max_l1_score.
-                - reason = "Fallback: Compliant.".
-- violation_details and policy_category_scores will only contain Layer 1 findings and any API_FALLBACK:... details.
+                - `result = :pass`, `confidence = max_l1_score`.
+                - `reason = "Fallback: Compliant."`.
+- `violation_details` and `policy_category_scores` will only contain Layer 1 findings and any `API_FALLBACK:...` details.
 </details>
 
 <details>
 <summary><strong>Efficiency & Scalability Considerations</strong></summary>
 
-- Single Message Processing: The service interface (call method) processes one message at a time to maintain simplicity and testability.
-- Layer 1 Pre-filtering: Optimizes by quickly handling clear violations locally.
-- External Parallel Processing: High-volume screening (e.g., 10k+ messages) is intended to be managed by the calling application, for example, by using background job systems like Sidekiq to run SmsPolicyCheckerService.call for individual messages in parallel worker processes.
+- **Single Message Processing:** The service interface (`call` method) processes one message at a time to maintain simplicity and testability.
+- **Layer 1 Pre-filtering:** Optimizes by quickly handling clear violations locally.
+- **External Parallel Processing:** High-volume screening (e.g., 10k+ messages) is intended to be managed by the calling application, for example, by using background job systems like Sidekiq to run `SmsPolicyCheckerService.call` for individual messages in parallel worker processes.
 </details>
 
 ## Running Tests
-The project uses RSpec for testing. The main test suite (spec/services/sms_policy_checker_service_spec.rb) focuses on live integration tests with Google APIs.
+The project uses RSpec for testing. The main test suite (`spec/services/sms_policy_checker_service_spec.rb`) focuses on **live integration tests** with Google APIs.
 
 **Prerequisites for Live Tests:**
-1. GOOGLE_API_KEY Environment Variable: Must be set with a valid Google Cloud API key that has Safe Browse, Natural Language, and Generative Language (Gemini) APIs enabled. Live tests will be skipped if this key is not set or is a placeholder value.
-2. Configuration Files: All YAML configuration files (sms_policy_checker_rules.yml, sms_policy_checker_llm_config.yml, sms_policy_checker_thresholds.yml) must be present and correctly structured in the config/ directory.
-3. Internet Connection: Required for all API calls.
-4. Awareness of Costs/Rate Limits: Live API calls will incur costs on your Google Cloud account and are subject to rate limits. Run judiciously.
+1. `GOOGLE_API_KEY` **Environment Variable:** Must be set with a valid Google Cloud API key that has Safe Browse, Natural Language, and Generative Language (Gemini) APIs enabled. Live tests will be skipped if this key is not set or is a placeholder value.
+2. **Configuration Files:** All YAML configuration files (`sms_policy_checker_rules.yml`, `sms_policy_checker_llm_config.yml`, `sms_policy_checker_thresholds.yml`) must be present and correctly structured in the `config/` directory.
+3. **Internet Connection:** Required for all API calls.
+4. **Awareness of Costs/Rate Limits:** Live API calls will incur costs on your Google Cloud account and are subject to rate limits. Run judiciously.
 
 **Commands:**
+- Run all RSpec tests:
 ```bash
-bundle exec rspec
-```
+    bundle exec rspec
+ ```
+- Run only the service specs:
 ```bash
-bundle exec rspec spec/services/sms_policy_checker_service_spec.rb
+    bundle exec rspec spec/services/sms_policy_checker_service_spec.rb
 ```
 
 ### Maintainer(s)
