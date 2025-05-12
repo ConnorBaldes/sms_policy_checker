@@ -8,29 +8,6 @@ The `SmsPolicyCheckerService` is designed to proactively analyze SMS message con
 
 Built as a Ruby on Rails service object, it accepts an SMS message body as input and returns a comprehensive analysis report. The architecture leverages a multi-layered filtering strategy, combining rapid, deterministic rule-based checks (Layer 1) with sophisticated, context-aware Large Language Model (LLM) analysis (Layer 2) powered by Google's Gemini API and supported by Google Cloud's Natural Language and Safe Browse APIs.
 
-## Table of Contents
-
-* [Key Features](#key-features)
-* [Architecture Overview](#architecture-overview)
-* [Project Directory Structure](#project-directory-structure)
-* [Installation](#installation)
-* [Configuration](#configuration)
-    * [API Key](#api-key)
-    * [YAML Configuration Files](#yaml-configuration-files)
-* [Usage](#usage)
-* [Service Output Details (API)](#service-output-details-api)
-    * [Output Structure: `message_analysis_report`](#output-structure-message_analysis_report)
-    * [Example Report (Failure)](#example-report-failure)
-    * [Example Report (Pass in Fallback)](#example-report-pass-in-fallback)
-* [Detailed Design and Processing Logic](#detailed-design-and-processing-logic)
-    * [Layer 1: Rule-Based Pre-filters](#layer-1-rule-based-pre-filters)
-    * [Layer 2: Advanced LLM-Powered Analysis](#layer-2-advanced-llm-powered-analysis)
-    * [Final Decision Logic & Overall Algorithm](#final-decision-logic--overall-algorithm)
-    * [Fallback Mode: API Unavailability](#fallback-mode-api-unavailability)
-    * [Efficiency & Scalability Considerations](#efficiency--scalability-considerations)
-* [Running Tests](#running-tests)
-* [Maintainer(s)](#maintainers)
-
 ## Key Features
 
 * **Multi-Layered Analysis:** Combines fast, regex/keyword-based Layer 1 filtering with deep, contextual LLM-powered Layer 2 analysis.
