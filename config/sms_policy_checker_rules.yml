@@ -1,6 +1,4 @@
 # Layer 1 Rules for SmsPolicyCheckerService
-# See README.md Section 4.2 for detailed structure.
-#
 # - name: Unique rule identifier (String)
 #   description: Human-readable description (String)
 #   type: "keyword" or "regex" (String)
@@ -9,36 +7,368 @@
 #   individual_confidence: Float (0.0-1.0) - confidence of violation on match
 #   is_early_exit_rule: Boolean (true/false)
 #   early_exit_threshold: Float (0.0-1.0) - if is_early_exit_rule is true
+# Early exit rules have confidence 1.0 and threshold 1.0.
 
-- name: "L1_SHAFT_SEX_EXPLICIT_KEYWORD"
-  description: "Detects unambiguously explicit sexual terms."
+# --- Phishing & Deception Related ---
+- name: "L1_PHISHING_IMMEDIATE_ACTION_WITH_LINK_HIGH_CONF"
+  description: "Detects common high-urgency phishing phrases combined with any link, suggesting immediate action to avert negative consequences."
+  type: "regex" # Requires checking for both keyword group and presence of a URL
+  patterns:
+    # Regex to find a phishing phrase AND a URL in the same message.
+    # This is a conceptual example; actual implementation might require two checks in service or a more complex regex.
+    # For simplicity here, assuming RuleLoader handles basic "AND" if implemented, or these are keyword sets checked alongside URL presence.
+    # For now, these are keyword patterns; the service logic would need to confirm URL presence.
+    # To make it a single regex for L1: (difficult to list all keyword combos with a URL regex)
+    # Let's use keywords and assume the service checks for a URL if this rule is triggered.
+    # Or, for a pure L1 regex: /(?=.*\b(account suspended|verify immediately|urgent security alert|password expired|confirm your details|unusual login attempt|action required)\b)(?=.*https?:\/\/[^\s]+).*/i
+    # The above regex is complex for YAML. Simpler: make these keyword rules and L2 handles link context better.
+    # Given L1 limitations, let's focus on keywords indicating urgency and *implying* a link will be used for action.
+    - 'your account is suspended click here'
+    - 'unusual login detected verify now'
+    - 'confirm your bank details immediately'
+  mapped_policy_category: "PhishingAndDeceptiveURLs"
+  individual_confidence: 0.85 # High, but context is still key, so not always early exit.
+  is_early_exit_rule: false
+
+- name: "L1_PHISHING_GENERIC_LINK_ASK_HIGH_CONF"
+  description: "Detects generic requests to click links for non-specific reasons, often a phishing tactic."
   type: "keyword"
   patterns:
-    - 'hardcore sex'
-    - 'explicit video'
-    # ... more highly specific and unambiguous terms
-  mapped_policy_category: "SHAFT-Sex"
+    - 'click the link to update your information'
+    - 'please follow this link for important update'
+    - 'access your account through this portal' # Generic portal
+  mapped_policy_category: "PhishingAndDeceptiveURLs"
+  individual_confidence: 0.55
+  is_early_exit_rule: false
+
+- name: "L1_PUBLIC_URL_SHORTENER_SEVERE"
+  description: "Detects the use of common, free public URL shorteners, strong phishing/spam indicator."
+  type: "regex"
+  patterns:
+    - '(?:https?:\/\/)?(?:www\.)?(bit\.ly|tinyurl\.com|goo\.gl|t\.co|is\.gd|ow\.ly|shorturl\.at|tiny\.cc| cutt\.ly|rb\.gy|is\.gd|v\.gd|tr\.im|shorte\.st)\/[a-zA-Z0-9\-_.~]+'
+  mapped_policy_category: "ProhibitedPublicURLShorteners" # Maps to an L2 characteristic
+  individual_confidence: 1.0 # Using public shorteners is often a direct violation for carriers
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+# --- Misleading Sender / False Info ---
+- name: "L1_IMPERSONATION_BANK_HIGH_CONF"
+  description: "Keywords strongly suggesting impersonation of a bank or financial institution, asking for action."
+  type: "keyword"
+  patterns:
+    - 'this is Bank of America your account is locked click' # [BankName] would need to be a list or handled by L2
+    - 'official bank alert verify credentials'
+    - 'we are from Chase Bank contact us on this unofficial number' # This is harder for L1
+    # L1 is weak here; relies heavily on L2. These keywords are just indicators.
+    - 'bank security department urgent'
+    - 'your card has been deactivated by you bank'
+  mapped_policy_category: "MisleadingSenderIdentity"
+  individual_confidence: 0.70
+  is_early_exit_rule: false
+
+- name: "L1_FALSE_PRIZE_WINNING_HIGH_CONF"
+  description: "Detects common false prize or lottery winning claims."
+  type: "keyword"
+  patterns:
+    - 'you have won a million dollars click here'
+    - 'congratulations your phone number won a new iphone'
+    - 'claim your free government grant'
+  mapped_policy_category: "FalseOrInaccurateContent" # Could also be FraudulentOrMaliciousContent
+  individual_confidence: 0.90
+  is_early_exit_rule: false # Often needs URL/action check to be fully condemnatory
+
+# --- SHAFT: Hate ---
+- name: "L1_HATE_SPEECH_SEVERE_SLURS"
+  description: "Detects unambiguous, severe racial or ethnic slurs and extreme hate terms."
+  type: "keyword"
+  patterns:
+    # THIS LIST MUST BE CAREFULLY CURATED AND MAINTAINED.
+    # Examples (use with extreme caution, these are offensive terms for detection purposes ONLY):
+    - 'n[i1]gg[e3]r' # (Using common leetspeak variations)
+    - 'k[i1]k[e3]'
+    - 'f[a4]gg[o0]t'
+    - 'white power now'
+    - 'kill all [group]' # (Requires a list of targeted groups if done by L1)
+    # For L1, focus on self-contained, universally recognized severe slurs.
+    # Due to the sensitivity and complexity, this list will be very short and explicit.
+  mapped_policy_category: "HatefulContent"
   individual_confidence: 1.0
   is_early_exit_rule: true
   early_exit_threshold: 1.0
 
-- name: "L1_PUBLIC_URL_SHORTENER"
-  description: "Detects the use of common, free public URL shorteners."
-  type: "regex"
+- name: "L1_HATE_SPEECH_MODERATE_TERMS"
+  description: "Detects terms often associated with hate or disparagement but might require more context."
+  type: "keyword"
   patterns:
-    - '(?:https?:\/\/)?(?:www\.)?(bit\.ly|tinyurl\.com|goo\.gl|t\.co|is\.gd|ow\.ly)\/[a-zA-Z0-9]+'
-    # Add more shortener domains as needed
-  mapped_policy_category: "Prohibited-URL-Shortener"
-  individual_confidence: 0.90
-  is_early_exit_rule: true
-  early_exit_threshold: 0.90
+    - 'inferior race' # (Example, list needs careful curation)
+    - 'deport all cats'
+  mapped_policy_category: "HatefulContent"
+  individual_confidence: 0.75
+  is_early_exit_rule: false
 
-- name: "L1_EXCESSIVE_CAPITALIZATION"
-  description: "Detects excessive use of uppercase letters."
+# --- SHAFT: Sex / Adult Content ---
+- name: "L1_SHAFT_SEX_EXTREME_EXPLICIT_SEVERE" # More severe version of existing rule
+  description: "Detects extremely explicit sexual terms or offers for illegal sexual services."
+  type: "keyword"
+  patterns:
+    # THIS LIST MUST BE CAREFULLY CURATED.
+    # Examples (offensive terms for detection purposes ONLY):
+    - 'child porn'
+    - 'rape fantasy'
+    - 'buy sex slaves'
+    - 'gangbang invite'
+  mapped_policy_category: "SHAFT_Sex_AdultContent" # Maps to L2 characteristic
+  individual_confidence: 1.0
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+- name: "L1_SHAFT_SEX_EXPLICIT_MODERATE" # Similar to your existing, but not early exit
+  description: "Detects explicit sexual terms that are highly problematic but might not warrant immediate block without context."
+  type: "keyword"
+  patterns:
+    - 'hardcore sex'
+    - 'explicit video'
+    - 'live nude cams'
+    - 'adult XXX movies'
+    - 'escort service available'
+  mapped_policy_category: "SHAFT_Sex_AdultContent"
+  individual_confidence: 0.85
+  is_early_exit_rule: false
+
+# --- SHAFT: Alcohol ---
+- name: "L1_ALCOHOL_DIRECT_SALE_UNSOLICITED_SEVERE"
+  description: "Detects direct, unsolicited offers for alcohol sale/delivery, especially with urgency."
+  type: "keyword"
+  patterns:
+    - 'buy cheap vodka now delivery'
+    - 'unlimited free beer tonight special offer text back'
+    - 'get your alcohol fix quick'
+  mapped_policy_category: "SHAFT_Alcohol_ProhibitedPromotion"
+  individual_confidence: 1.0 # If clearly unsolicited sale
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+- name: "L1_ALCOHOL_PROMOTION_KEYWORDS"
+  description: "Keywords related to alcohol promotion that may need L2 for age/context check."
+  type: "keyword"
+  patterns:
+    - 'happy hour specials'
+    - 'wine tasting event'
+    - 'new craft beer'
+    - 'discount spirits'
+  mapped_policy_category: "SHAFT_Alcohol_ProhibitedPromotion"
+  individual_confidence: 0.6
+  is_early_exit_rule: false
+
+# --- SHAFT: Firearms ---
+- name: "L1_FIREARMS_ILLEGAL_SALE_SEVERE"
+  description: "Keywords strongly indicating illegal sale of firearms (e.g., no background check, specific banned types)."
+  type: "keyword"
+  patterns:
+    - 'buy unregistered AR-15'
+    - 'AK-47 no papers cash only'
+    - 'ghost gun kits for sale'
+    - 'selling firearms no FFL'
+  mapped_policy_category: "SHAFT_Firearms_IllegalPromotion"
+  individual_confidence: 1.0
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+- name: "L1_FIREARMS_GENERAL_SALE_KEYWORDS"
+  description: "General keywords about firearm sales that require L2 for legality/context."
+  type: "keyword"
+  patterns:
+    - 'guns for sale'
+    - 'buy ammunition here'
+    - 'firearm accessories cheap'
+    - 'looking to sell my rifle'
+  mapped_policy_category: "SHAFT_Firearms_IllegalPromotion"
+  individual_confidence: 0.7
+  is_early_exit_rule: false
+
+# --- SHAFT: Tobacco ---
+- name: "L1_TOBACCO_VAPE_UNSOLICITED_SALE_SEVERE"
+  description: "Detects direct, unsolicited offers for tobacco/vape sales, especially to bypass age checks."
+  type: "keyword"
+  patterns:
+    - 'buy cheap cigarettes online no ID'
+    - 'vape juice direct to your door fast'
+    - 'unrestricted vape sales text now'
+  mapped_policy_category: "SHAFT_Tobacco_ProhibitedPromotion"
+  individual_confidence: 1.0
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+- name: "L1_TOBACCO_VAPE_PROMOTION_KEYWORDS"
+  description: "Keywords for tobacco/vape promotion needing L2 for context."
+  type: "keyword"
+  patterns:
+    - 'e-cigarette specials'
+    - 'new vape flavors'
+    - 'discount tobacco products'
+    - 'premium cigars offer'
+  mapped_policy_category: "SHAFT_Tobacco_ProhibitedPromotion"
+  individual_confidence: 0.65
+  is_early_exit_rule: false
+
+# --- Prohibited Substances (Cannabis, CBD, Kratom, other illegal drugs) ---
+- name: "L1_CANNABIS_CBD_KRATOM_SALE_SEVERE"
+  description: "Detects explicit offers to sell Cannabis, CBD, or Kratom products."
+  type: "keyword"
+  patterns:
+    - 'buy cannabis online delivery'
+    - 'CBD oil for sale cheap'
+    - 'kratom powder direct'
+    - 'order weed now'
+    - 'THC gummies shop'
+  mapped_policy_category: "ProhibitedSubstances_CannabisCBDKratom"
+  individual_confidence: 1.0 # Twilio policy is quite strict here
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+- name: "L1_ILLEGAL_DRUGS_MENTION_SEVERE" # Broader illegal drugs
+  description: "Detects explicit mentions or offers of federally illegal hard drugs."
+  type: "keyword"
+  patterns:
+    # THIS LIST MUST BE CAREFULLY CURATED.
+    # Examples (terms for detection purposes ONLY):
+    - 'buy heroin'
+    - 'LSD for sale'
+    - 'methamphetamine cheap'
+    - 'cocaine delivery'
+    - 'fentanyl pills'
+  mapped_policy_category: "FraudulentOrMaliciousContent" # Or a more specific "IllegalSubstances" if L2 has it
+  individual_confidence: 1.0
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+# --- Regulated Pharmaceuticals ---
+- name: "L1_RX_DRUGS_ILLEGAL_OFFER_SEVERE"
+  description: "Detects clear offers for prescription drugs without a prescription, or controlled substances."
+  type: "keyword"
+  patterns:
+    # THIS LIST MUST BE CAREFULLY CURATED. Focus on common illegally sold Rx drugs.
+    - 'buy Xanax no prescription'
+    - 'Valium for sale online cheap'
+    - 'Oxycontin direct'
+    - 'Adderall without Rx' # e.g., specific drug name + "no prescription"
+  mapped_policy_category: "RegulatedPharmaceuticals_PrescriptionOffers"
+  individual_confidence: 1.0
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+- name: "L1_RX_DRUGS_KEYWORDS_AMBIGUOUS"
+  description: "Keywords mentioning prescription drug names that could be legitimate or not; requires L2."
+  type: "keyword"
+  patterns:
+    # List common drug names that are often abused or sold illicitly, but might also be discussed legitimately.
+    - 'Xanax'
+    - 'Valium'
+    - 'Oxycontin'
+    - 'Adderall'
+    - 'Viagra'
+    - 'Cialis'
+    - 'Percocet'
+  mapped_policy_category: "RegulatedPharmaceuticals_PrescriptionOffers"
+  individual_confidence: 0.6
+  is_early_exit_rule: false
+
+# --- Fraudulent / Malicious ---
+- name: "L1_FRAUD_MALWARE_LINK_SEVERE"
+  description: "Detects phrases typically associated with malware distribution or obvious scam setup if a link is present."
+  type: "keyword" # L1 can't easily check for link AND keyword simultaneously without regex group; L2 is better.
+  patterns:
+    - 'your computer is infected download this fix' # Often implies link
+    - 'claim your unexpected tax refund now details'
+    - 'inheritance notification requires action'
+  mapped_policy_category: "FraudulentOrMaliciousContent"
+  individual_confidence: 0.8 # High, but L2 should confirm link nature
+  is_early_exit_rule: false
+
+# --- High-Risk Financial Services ---
+- name: "L1_HIGH_RISK_FINANCE_PAYDAY_SEVERE"
+  description: "Detects explicit payday loan offers or similar high-interest, short-term loans."
+  type: "keyword"
+  patterns:
+    - 'instant payday loan approval'
+    - 'cash advance now bad credit ok'
+    - 'need money fast easy loan'
+  mapped_policy_category: "HighRiskFinancialServices"
+  individual_confidence: 0.9 # Often problematic for carriers
+  is_early_exit_rule: false # Usually not severe enough for L1 early exit without more context
+
+# --- Get Rich Quick Schemes ---
+- name: "L1_GET_RICH_QUICK_SEVERE"
+  description: "Detects obvious get-rich-quick scheme language."
+  type: "keyword"
+  patterns:
+    - 'guaranteed to make $1000 a day from home'
+    - 'secret money making system revealed'
+    - 'triple your investment in 24 hours'
+    - 'join our pyramid scheme now'
+  mapped_policy_category: "GetRichQuickSchemes"
+  individual_confidence: 0.95
+  is_early_exit_rule: false # Risky for L1 early exit, as some "hustle culture" messages might touch on this.
+
+# --- Gambling ---
+- name: "L1_GAMBLING_UNSOLICITED_BETTING_SEVERE"
+  description: "Detects unsolicited offers for online betting or casino gambling."
+  type: "keyword"
+  patterns:
+    - 'free bets online casino now'
+    - 'join our poker site win big money'
+    - 'sports betting odds instant play'
+  mapped_policy_category: "GamblingPromotions"
+  individual_confidence: 0.9
+  is_early_exit_rule: false # Gambling can be legitimate if highly regulated; L2 needed.
+
+# --- Content Evasion / Service Interference ---
+- name: "L1_EXCESSIVE_CAPITALIZATION_MODERATE" # Existing rule, good
+  description: "Detects excessive use of uppercase letters, a spam indicator."
   type: "regex"
   patterns:
-    - '(?:[A-Z]\\s*){15,}' # 15 or more capital letters, possibly with spaces
-  mapped_policy_category: "Content-Evasion-Spam"
+    - '(?:[A-ZÀ-Þ]\s*){15,}' # Extended to include some common accented caps
+  mapped_policy_category: "AdvancedContentEvasionTactics" # Or "ServiceInterferenceOrFilterEvasion"
   individual_confidence: 0.70
   is_early_exit_rule: false
-  # early_exit_threshold: not needed if not an early exit rule
+
+- name: "L1_EXCESSIVE_SPECIAL_CHARS_MODERATE"
+  description: "Detects an unusually high ratio or long sequences of special characters, potential obfuscation."
+  type: "regex"
+  patterns:
+    - '[!@#$%^&*()_+\-=\[\]{};'':"\\|,.<>\/?\s]{7,}' # 7+ consecutive special chars or spaces
+    - '(\w\s*[*@#$!%^&]\s*){5,}\w' # e.g. w*o*r*d*s (at least 5 such alternations)
+  mapped_policy_category: "AdvancedContentEvasionTactics"
+  individual_confidence: 0.75
+  is_early_exit_rule: false
+
+- name: "L1_INTENTIONAL_MISSPELL_COMMON_SEVERE"
+  description: "Detects common intentional misspellings of highly sensitive words to evade basic filters."
+  type: "keyword" # These are specific, known misspellings
+  patterns:
+    # Examples, this list needs to be built carefully
+    - 'v1agra'
+    - 'c1alis'
+    - 'pr0n'
+    - 's3x' # (though 'sex' itself is not always bad, 's3x' is more indicative of evasion)
+  mapped_policy_category: "ServiceInterferenceOrFilterEvasion" # This is clearly filter evasion
+  individual_confidence: 1.0
+  is_early_exit_rule: true
+  early_exit_threshold: 1.0
+
+# --- Prohibited Affiliate Marketing (Hard for L1, mostly relies on URL and L2 context) ---
+# L1 can only do very basic checks.
+- name: "L1_AFFILIATE_MARKETING_SUSPICIOUS_PHRASES"
+  description: "Detects phrases often used in low-quality or prohibited affiliate marketing."
+  type: "keyword"
+  patterns:
+    - 'make money with this one weird trick'
+    - 'limited spots available for this secret system'
+    - 'click here to see how i earned [large sum]' # [large sum] is a placeholder for common patterns
+  mapped_policy_category: "ProhibitedAffiliateMarketing"
+  individual_confidence: 0.6
+  is_early_exit_rule: false
+
+# RestrictedDebtCollection (Very hard for L1, relies on phrasing and context identified by L2)
+# L1 might only catch extremely explicit threats if any were universally prohibited.
+# For now, will rely on L2 for this category.

@@ -1,42 +1,6 @@
 # Trial Project: SMS Message Policy Checker
 
-## Project Directory
-```bash
-sms_policy_checker_app/
-├── app/
-│   ├── services/
-│   │   └── sms_policy_checker_service.rb  # Main service object
-│   ├── helpers/
-│   │   └── sms_policy/
-│   │       └── rule_loader.rb             # Helper for loading Layer 1 rules
-│   └── clients/                           # API client wrappers
-│       └── google/
-│           ├── gemini_client.rb
-│           ├── safe_browse_client.rb
-│           ├── perspective_client.rb
-│           └── nl_client.rb
-├── config/
-│   ├── initializers/
-│   │   └── sms_policy_checker_config.rb   # To load YAML configs on boot
-│   ├── sms_policy_checker_rules.yml       # Layer 1 rules
-│   ├── sms_policy_checker_llm_config.yml  # Layer 2 LLM characteristics and prompts
-│   └── sms_policy_checker_thresholds.yml  # Various decision thresholds
-├── spec/
-│   ├── services/
-│   │   └── sms_policy_checker_service_spec.rb # RSpec tests for the service
-│   ├── helpers/
-│   │   └── sms_policy/
-│   │       └── rule_loader_spec.rb          # RSpec tests for the rule loader
-│   ├── clients/
-│   │   └── google/
-│   │       ├── gemini_client_spec.rb
-│   │       ├── safe_browse_client_spec.rb
-│   │       ├── perspective_client_spec.rb
-│   │       └── nl_client_spec.rb
-│   └── support/                           # RSpec support files (e.g., shared contexts, mocks)
-│       └── file_fixtures.rb               # Helper for loading YAML fixtures in tests
-└── README.md                              
-```
+
 
 ## Context
 

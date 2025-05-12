@@ -1,0 +1,6 @@
+--private
+--protected
+--title "SMS Policy Checker Service Documentation"
+app/**/*.rb
+lib/**/*.rb
+config/initializers/sms_policy_checker_config.rb

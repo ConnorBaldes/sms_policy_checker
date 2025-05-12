@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  File: README
+  
+    &mdash; SMS Policy Checker Service Documentation
+  
+</title>
+
+  <link rel="stylesheet" href="css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "README";
+  relpath = '';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="file_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="_index.html">Index</a> &raquo; 
+    <span class="title">File: README</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><div id='filecontents'><h1 id="sms-message-policy-checker-design-and-implementation-details">SMS Message Policy Checker: Design and Implementation Details</h1>
+
+<h1 id="trial-project-sms-message-policy-checker">Trial Project: SMS Message Policy Checker</h1>
+
+<h2 id="project-directory">Project Directory</h2>
+
+<pre class="code bash"><code class="bash">sms_policy_checker_app/
+├── app/
+│   ├── services/
+│   │   └── sms_policy_checker_service.rb  # Main service object
+│   ├── helpers/
+│   │   └── sms_policy/
+│   │       └── rule_loader.rb             # Helper for loading Layer 1 rules
+│   └── clients/                           # API client wrappers
+│       └── google/
+│           ├── gemini_client.rb
+│           ├── safe_browse_client.rb
+│           ├── perspective_client.rb
+│           └── nl_client.rb
+├── config/
+│   ├── initializers/
+│   │   └── sms_policy_checker_config.rb   # To load YAML configs on boot
+│   ├── sms_policy_checker_rules.yml       # Layer 1 rules
+│   ├── sms_policy_checker_llm_config.yml  # Layer 2 LLM characteristics and prompts
+│   └── sms_policy_checker_thresholds.yml  # Various decision thresholds
+└── README.md
+</code></pre>
+
+<h2 id="1-project-goal-overview">1. Project Goal &amp; Overview</h2>
+
+<p>The primary goal of the <code>SmsPolicyCheckerService</code> is to analyze SMS message content <em>before</em> it is sent via Twilio, identify potential policy violations that could lead to carrier filtering (specifically Twilio error 30007), and provide structured feedback. This service aims to reduce message blocking by flagging problematic content related to phishing, SHAFT (Sex, Hate, Alcohol, Firearms, Tobacco), misleading sender information, and other carrier or Twilio policy violations.</p>
+
+<p>The service is designed as a Ruby on Rails service object, accepting a message body as input and returning a detailed, structured analysis result. It incorporates a multi-layered filtering approach, leveraging both rapid rule-based checks and advanced Large Language Model (LLM) capabilities through Google&#39;s Gemini API and associated Google Cloud services.</p>
+
+<h2 id="2-core-service-object-smspolicycheckerservice">2. Core Service Object: <code>SmsPolicyCheckerService</code></h2>
+
+<h3 id="2-1-interface">2.1. Interface</h3>
+
+<ul>
+<li><strong>Class:</strong> <code>SmsPolicyCheckerService</code></li>
+<li><strong>Location:</strong> <code>app/services/sms_policy_checker_service.rb</code></li>
+<li><strong>Primary Method:</strong> A class method <code>call</code> for easy invocation.
+
+<ul>
+<li><strong>Input:</strong> <code>message_body</code> (String): The raw text content of the SMS message to be analyzed.</li>
+<li><strong>Output:</strong> A <code>Hash</code> representing a structured <code>message_analysis_report</code>.</li>
+</ul></li>
+</ul>
+
+<h3 id="2-2-output-structure-message_analysis_report">2.2. Output Structure: <code>message_analysis_report</code></h3>
+
+<p>The service returns a comprehensive hash with the following keys:</p>
+
+<ul>
+<li><code>result</code> (Symbol): Overall outcome. Either <code>:pass</code> or <code>:fail</code>.</li>
+<li><code>reason</code> (String): A human-readable explanation for the outcome.
+
+<ul>
+<li>If <code>:fail</code>: Describes the primary policy category or rule that caused the failure. Examples:
+
+<ul>
+<li>For Layer 2 failures (in <code>:full_analysis</code> mode): &quot;Phishing &amp; Deceptive URLs&quot;</li>
+<li>For Layer 1 Early Exits (when <code>processing_mode</code> is <code>:full_analysis</code> because Layer 2 was intentionally skipped): &quot;Early Exit - Violation Category: [mapped_policy_category]&quot;</li>
+<li>For Layer 1 Early Exits (when <code>processing_mode</code> is <code>:fallback_layer1_only</code>): &quot;Fallback: Early Exit - Violation Category: [mapped_policy_category]&quot;</li>
+<li>For Layer 1 Threshold Failures (when <code>processing_mode</code> is <code>:fallback_layer1_only</code>): &quot;Fallback: Layer 1 Threshold Exceeded - Violation Category: [mapped_policy_category_of_max_l1_score_rule]&quot;</li>
+</ul></li>
+<li>If <code>:pass</code>: Indicates compliance. Examples:
+
+<ul>
+<li>When <code>processing_mode</code> is <code>:full_analysis</code>: &quot;Compliant&quot;</li>
+<li>When <code>processing_mode</code> is <code>:fallback_layer1_only</code>: &quot;Fallback: Compliant.&quot;</li>
+</ul></li>
+</ul></li>
+<li><code>confidence</code> (Float): A score between 0.0 and 1.0 representing the service&#39;s confidence in the <em>violation</em> (if <code>result: :fail</code>) or the highest score of any checked policy if it passed (if <code>result: :pass</code>, this score will be below the flagging threshold). A score of <code>0.0</code> generally indicates full confidence of no violation found by the checks performed.</li>
+<li><code>rewrite_suggestion</code> (Hash | String, Optional): If the message failed and <code>processing_mode</code> is <code>:full_analysis</code>, the LLM will attempt to provide a suggestion. The content of this field will be:
+
+<ul>
+<li>A <strong>Hash</strong> if the LLM deems the message correctable, containing:
+
+<ul>
+<li><code>general_fix_suggestions</code> (String): General advice from the LLM on how to avoid the identified violation.</li>
+<li><code>literal_rewrite</code> (String): The LLM&#39;s actual suggested rewritten text for the message.</li>
+</ul></li>
+<li>A <strong>String</strong> (e.g., &quot;This message cannot be made compliant due to: [LLM-provided reason]&quot;) if the LLM determines the original message is uncorrectable.</li>
+<li><code>nil</code> if the LLM provides neither the Hash suggestion nor the &quot;uncorrectable&quot; string assessment (e.g., due to an inability to generate the suggestion, an API error during the rewrite attempt, or if the LLM&#39;s output is not in the expected format). It will also be <code>nil</code> if <code>processing_mode</code> is <code>:fallback_layer1_only</code>.</li>
+</ul></li>
+<li><code>processing_mode</code> (Symbol): Indicates how the analysis was performed.
+
+<ul>
+<li><code>:full_analysis</code>: Both Layer 1 and Layer 2 (LLM analysis) were completed.</li>
+<li><code>:fallback_layer1_only</code>: Due to API unavailability, only Layer 1 rule-based checks were performed.</li>
+</ul></li>
+<li><code>policy_category_scores</code> (Hash): A hash where keys are internal <code>policy_category</code> strings (e.g., &quot;Phishing,&quot; &quot;SHAFT-Hate&quot;) and values are the final confidence scores (0.0-1.0) for each category assessed for the message. This shows the score for <em>all</em> categories that had findings, not just the primary reason for failure.
+
+<ul>
+<li>Example: <code>{&quot;Phishing&quot;: 0.95, &quot;SHAFT-Sex&quot;: 0.2, &quot;Content-Evasion-Spam&quot;: 0.65}</code></li>
+</ul></li>
+<li><code>violation_details</code> (Array of Hashes): A comprehensive list of all individual findings (both from Layer 1 rules and Layer 2 LLM analysis) that contributed to the analysis, regardless of whether they directly caused a failure. Each hash contains:
+
+<ul>
+<li><code>layer</code> (Integer): 1 or 2.</li>
+<li><code>filter_type</code> (String): The specific rule name (e.g., &quot;L1_PUBLIC_URL_SHORTENER&quot;) or LLM analysis type (e.g., &quot;Gemini:Phishing,&quot; &quot;Perspective:TOXICITY&quot;).</li>
+<li><code>description</code> (String): A human-readable description of the finding (e.g., &quot;Matched public URL shortener bit.ly,&quot; Gemini&#39;s rationale for a Phishing assessment, &quot;Perspective API TOXICITY score exceeded moderate threshold&quot;).</li>
+<li><code>matched_value</code> (String, Optional): The specific text snippet or URL that triggered the rule or was focused on by the LLM.</li>
+<li><code>individual_confidence</code> (Float): The confidence score assigned by that specific rule or LLM analysis for this particular finding.</li>
+<li><code>policy_category</code> (String): The internal policy category this finding pertains to.</li>
+</ul></li>
+</ul>
+
+<p><strong>Example <code>message_analysis_report</code> (Failure):</strong></p>
+
+<pre class="code json"><code class="json">{
+  &quot;result&quot;: &quot;:fail&quot;,
+  &quot;reason&quot;: &quot;Phishing &amp; Deceptive URLs&quot;,
+  &quot;confidence&quot;: 0.98,
+  &quot;rewrite_suggestion&quot;: &quot;To update your account, please visit our official website [example.com/support](https://example.com/support) or call us directly. Do not click unverified links.&quot;,
+  &quot;processing_mode&quot;: &quot;:full_analysis&quot;,
+  &quot;policy_category_scores&quot;: {
+    &quot;Phishing&quot;: 0.98,
+    &quot;Prohibited-URL-Shortener&quot;: 0.90,
+    &quot;SHAFT-Sex&quot;: 0.15
+  },
+  &quot;violation_details&quot;: [
+    {
+      &quot;layer&quot;: 1,
+      &quot;filter_type&quot;: &quot;L1_PUBLIC_URL_SHORTENER&quot;,
+      &quot;description&quot;: &quot;Detected public URL shortener: t.ly/example&quot;,
+      &quot;matched_value&quot;: &quot;t.ly/example&quot;,
+      &quot;individual_confidence&quot;: 0.90,
+      &quot;policy_category&quot;: &quot;Prohibited-URL-Shortener&quot;
+    },
+    {
+      &quot;layer&quot;: 2,
+      &quot;filter_type&quot;: &quot;Gemini:Phishing&quot;,
+      &quot;description&quot;: &quot;The message uses urgent language typical of phishing (&#39;urgent action required&#39;) combined with an unverified shortened URL that redirects to a suspicious domain. Google Safe Browse also flagged the destination URL for SOCIAL_ENGINEERING.&quot;,
+      &quot;matched_value&quot;: &quot;urgent action required, visit t.ly/example&quot;,
+      &quot;individual_confidence&quot;: 0.98,
+      &quot;policy_category&quot;: &quot;Phishing&quot;
+    }
+    // ... other details if any
+  ]
+}
+</code></pre>
+
+<p><strong>Example message_analysis_report (Pass in Fallback):</strong></p>
+
+<pre class="code json"><code class="json">{
+  &quot;result&quot;: &quot;:pass&quot;,
+  &quot;reason&quot;: &quot;Fallback: Compliant.&quot;,
+  &quot;confidence&quot;: 0.70,
+  &quot;rewrite_suggestion&quot;: null,
+  &quot;processing_mode&quot;: &quot;:fallback_layer1_only&quot;,
+  &quot;policy_category_scores&quot;: {
+    &quot;Content-Evasion-Spam&quot;: 0.70
+  },
+  &quot;violation_details&quot;: [
+    {
+      &quot;layer&quot;: 1,
+      &quot;filter_type&quot;: &quot;L1_EXCESSIVE_CAPITALIZATION&quot;,
+      &quot;description&quot;: &quot;Message contains a high ratio of uppercase characters.&quot;,
+      &quot;matched_value&quot;: &quot;URGENT ATTENTION NEEDED CLICK NOW&quot;,
+      &quot;individual_confidence&quot;: 0.70,
+      &quot;policy_category&quot;: &quot;Content-Evasion-Spam&quot;
+    }
+  ]
+}
+</code></pre>
+
+<h3 id="2-3-processing-model">2.3 Processing Model</h3>
+
+<p>The service object is designed for <strong>Single Message Processing</strong>. The <code>call</code> method accepts one <code>message_body</code> and returns one <code>message_analysis_report</code>.
+<strong>Why:</strong> This simplifies the internal logic of the service object, making it easier to develop, test, and maintain. High-volume screening (10k+ messages) is intended to be handled by an external orchestration layer (e.g., multiple Sidekiq background job workers, each invoking the service for a single message), allowing for parallel processing and scalability.</p>
+
+<h2 id="3-overall-architectural-design-a-two-layer-sequential-filtering-approach">3. Overall Architectural Design: A Two-Layer Sequential Filtering Approach</h2>
+
+<p>The service employs a sequential, two-layer filtering process for efficiency and depth of analysis:</p>
+
+<ol>
+<li><p>Layer 1 (Rule-Based Pre-filters): The message is first processed by a series of fast, locally executable rules. If a high-confidence, severe violation is detected and designated as an &quot;early exit&quot; rule, processing stops, and Layer 2 is skipped.</p></li>
+<li><p>Layer 2 (Advanced LLM-Powered Analysis): If the message passes Layer 1 (i.e., no early exit), it proceeds to Layer 2 for more nuanced analysis using Google&#39;s Gemini API and other supporting Google Cloud APIs.</p></li>
+</ol>
+
+<p><strong>Why:</strong> This sequential model ensures that obvious, common violations are caught quickly and cheaply by Layer 1, reserving the more resource-intensive LLM analysis of Layer 2 for messages requiring deeper contextual understanding. This optimizes for both performance and cost.</p>
+
+<h2 id="4-layer-1-rule-based-pre-filters">4. Layer 1: Rule-Based Pre-filters</h2>
+
+<h3 id="4-1-purpose">4.1. Purpose</h3>
+
+<ul>
+<li>Rapid Detection: To quickly identify and flag common, unambiguous policy violations using predefined keywords and regular expressions.</li>
+<li>Cost &amp; Latency Optimization: To reduce unnecessary calls to the more expensive LLM services by handling clear cases locally.</li>
+<li>Standalone Fallback Capability: To provide a baseline level of message screening if Layer 2 (external APIs) becomes unavailable.</li>
+</ul>
+
+<h3 id="4-2-implementation-details">4.2. Implementation Details</h3>
+
+<ul>
+<li><p><strong>Configuration:</strong> All Layer 1 rules are defined in YAML configuration files (e.g., <code>config/sms_policy_checker_rules.yml</code>). This allows rules to be updated via configuration changes and deployment, without modifying service code.</p></li>
+<li><p><strong>Rule Definition Structure (in YAML):</strong> Each rule entry in the YAML file will have the following attributes:</p>
+
+<ul>
+<li><code>name</code> (String): A unique identifier for the rule (e.g., &quot;L1_SHAFT_SEX_EXPLICIT_KEYWORD&quot;).</li>
+<li><code>description</code> (String): A brief explanation of what the rule checks for.</li>
+<li><code>type</code> (String): Specifies how the <code>patterns</code> are to be interpreted. Either <code>&quot;keyword&quot;</code> or <code>&quot;regex&quot;</code>.</li>
+<li><code>patterns</code> (Array of Strings): A list of pattern strings.
+
+<ul>
+<li>If <code>type</code> is <code>&quot;keyword&quot;</code>: Each string is treated as a literal keyword or phrase. The system will compile it into a case-insensitive, whole-word matching regular expression (e.g., a keyword &quot;Alert!&quot; becomes an internal regex like <code>/\bAlert!\b/i</code> after escaping any special characters in &quot;Alert!&quot;).</li>
+<li>If <code>type</code> is <code>&quot;regex&quot;</code>: Each string is treated as a regular expression pattern. The system will compile it into a <code>Regexp</code> object, typically assuming case-insensitivity by default (users can use inline modifiers like <code>(?i)</code> or <code>(?-i)</code> within the pattern string for specific case sensitivity control if needed).</li>
+<li><strong><em>Note on Runtime Processing:</em></strong> During application initialization, the <code>patterns</code> defined in the YAML for each rule are processed based on their <code>type</code>. Keyword strings are converted into robust, case-insensitive, whole-word matching regular expressions, and regex strings are compiled directly. The resulting Ruby <code>Regexp</code> objects are stored as part of the service&#39;s internal representation of each rule (e.g., in a <code>compiled_patterns</code> attribute for each rule object/hash). These pre-compiled <code>Regexp</code> objects are then exclusively used for efficient matching during the Layer 1 processing of each message, ensuring pattern matching is as fast as possible.</li>
+</ul></li>
+<li><code>mapped_policy_category</code> (String): The internal policy category this rule corresponds to (e.g., &quot;SHAFT-Sex,&quot; &quot;Phishing-Attempt-Basic&quot;).</li>
+<li><code>individual_confidence</code> (Float): A score (0.0-1.0) representing the confidence that a match to this rule indicates a true violation of the mapped policy category.</li>
+<li><code>is_early_exit_rule</code> (Boolean): true if a high-confidence match to this rule should cause immediate message failure and skip Layer 2; false otherwise.</li>
+<li><code>early_exit_threshold</code> (Float): If is_early_exit_rule is true, this is the individual_confidence score the rule must meet or exceed to trigger an early exit (e.g., 0.95 or 1.0).</li>
+</ul></li>
+</ul>
+
+<h3 id="4-3-specific-layer-1-rules-illustrative-examples">4.3. Specific Layer 1 Rules (Illustrative Examples)</h3>
+
+<p>The following are example rules for Layer 1. (Note: Actual keyword lists and regex patterns will be more comprehensive and maintained in the YAML configuration).</p>
+
+<ol>
+<li><p><strong>Rule:</strong> <code>L1_SHAFT_SEX_EXPLICIT_KEYWORD</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects unambiguously explicit sexual terms.</li>
+<li><strong>Type:</strong> <code>keyword</code></li>
+<li><strong>Example Patterns:</strong> <code>[&quot;xxx&quot;, &quot;hardcore sex&quot;, ...]</code> (carefully curated list)</li>
+<li><strong>Mapped Policy Category:</strong> <code>SHAFT-Sex</code></li>
+<li><strong>Individual Confidence:</strong> <code>1.0</code></li>
+<li><strong>Early Exit Rule:</strong> <code>true</code></li>
+<li><strong>Early Exit Threshold:</strong> <code>1.0</code></li>
+<li><strong>Fallback Relevance:</strong> Critical for blocking clear explicit content.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_SHAFT_HATE_EXTREME_KEYWORD</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects undeniable hate speech terms or racial slurs.</li>
+<li><strong>Type:</strong> <code>keyword</code></li>
+<li><strong>Example Patterns:</strong> <code>[&quot;n-word&quot;, &quot;k*k*k&quot;, ...]</code> (list of severe slurs)</li>
+<li><strong>Mapped Policy Category:</strong> <code>SHAFT-Hate</code></li>
+<li><strong>Individual Confidence:</strong> <code>1.0</code></li>
+<li><strong>Early Exit Rule:</strong> <code>true</code></li>
+<li><strong>Early Exit Threshold:</strong> <code>1.0</code></li>
+<li><strong>Fallback Relevance:</strong> Essential for blocking blatant hate speech.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_SHAFT_FIREARMS_ILLEGAL_SALE_KEYWORD</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects keywords indicating illegal sale/transfer of firearms.</li>
+<li><strong>Type:</strong> <code>keyword</code> (potentially with simple proximity logic if implementable via regex)</li>
+<li><strong>Example Patterns:</strong> <code>[&quot;buy Glock no papers&quot;, &quot;sell AK47 unregistered&quot;, ...]</code></li>
+<li><strong>Mapped Policy Category:</strong> <code>SHAFT-Firearms</code></li>
+<li><strong>Individual Confidence:</strong> <code>0.95</code></li>
+<li><strong>Early Exit Rule:</strong> <code>true</code></li>
+<li><strong>Early Exit Threshold:</strong> <code>0.95</code></li>
+<li><strong>Fallback Relevance:</strong> Catches obvious illegal firearm sale attempts.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_SHAFT_ALCOHOL_TOBACCO_UNSOLICITED_PROMO_KEYWORD</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects clear, unsolicited promotion of alcohol/tobacco, especially if age-gating context is absent.</li>
+<li><strong>Type:</strong> <code>keyword</code></li>
+<li><strong>Example Patterns:</strong> <code>[&quot;free beer delivery&quot;, &quot;cheap vapes now&quot;, ...]</code></li>
+<li><strong>Mapped Policy Category:</strong> <code>SHAFT-Alcohol</code> (or <code>SHAFT-Tobacco</code>)</li>
+<li><strong>Individual Confidence:</strong> <code>0.85</code></li>
+<li><strong>Early Exit Rule:</strong> <code>false</code> (Generally, as these terms can appear in legitimate contexts for training messages. An early exit would only apply if specific phrases are 100% violative for the user&#39;s message types.)</li>
+<li><strong>Fallback Relevance:</strong> Provides some coverage, but requires careful keyword selection.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_PROHIBITED_SUBSTANCE_KEYWORD</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects explicit mentions of federally illegal drugs or unambiguous slang.</li>
+<li><strong>Type:</strong> <code>keyword</code></li>
+<li><strong>Example Patterns:</strong> <code>[&quot;heroin&quot;, &quot;LSD&quot;, &quot;methamphetamine&quot;, &quot;buy fentanyl&quot;, ...]</code></li>
+<li><strong>Mapped Policy Category:</strong> <code>Illegal-Substance</code></li>
+<li><strong>Individual Confidence:</strong> <code>1.0</code> (for unambiguous terms)</li>
+<li><strong>Early Exit Rule:</strong> <code>true</code></li>
+<li><strong>Early Exit Threshold:</strong> <code>1.0</code></li>
+<li><strong>Fallback Relevance:</strong> Critical for blocking explicit mentions of hard drugs.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_CANNABIS_CBD_KRATOM_PROMO_KEYWORD</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects promotional language for Cannabis, CBD, or Kratom, which are restricted by Twilio in US/Canada.</li>
+<li><strong>Type:</strong> <code>keyword</code></li>
+<li><strong>Example Patterns:</strong> <code>[&quot;buy cannabis online&quot;, &quot;CBD oil special offer&quot;, &quot;kratom for sale&quot;, ...]</code></li>
+<li><strong>Mapped Policy Category:</strong> <code>Prohibited-Substance-CBD-Cannabis-Kratom</code></li>
+<li><strong>Individual Confidence:</strong> <code>0.95</code> (if clearly promotional)</li>
+<li><strong>Early Exit Rule:</strong> <code>true</code></li>
+<li><strong>Early Exit Threshold:</strong> <code>0.95</code></li>
+<li><strong>Fallback Relevance:</strong> Important due to Twilio&#39;s strict stance.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_PUBLIC_URL_SHORTENER</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects the use of common, free public URL shorteners.</li>
+<li><strong>Type:</strong> <code>regex</code></li>
+<li><strong>Example Patterns:</strong> <code>[/(bit\.ly|tinyurl\.com|goo\.gl|t\.co|is\.gd|ow\.ly)\/[a-zA-Z0-9]+/i]</code> (list will be expanded)</li>
+<li><strong>Mapped Policy Category:</strong> <code>Prohibited-URL-Shortener</code></li>
+<li><strong>Individual Confidence:</strong> <code>0.90</code></li>
+<li><strong>Early Exit Rule:</strong> <code>true</code></li>
+<li><strong>Early Exit Threshold:</strong> <code>0.90</code></li>
+<li><strong>Fallback Relevance:</strong> Catches a common and easily identifiable carrier violation.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_PHISHING_URGENCY_KEYWORDS_WITH_LINK</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects common phishing urgency phrases when a URL is also present.</li>
+<li><strong>Type:</strong> <code>keyword</code> (with regex check for any URL)</li>
+<li><strong>Example Patterns:</strong> Keywords like <code>&quot;account suspended&quot;</code>, <code>&quot;verify immediately&quot;</code>, <code>&quot;urgent security alert&quot;</code>, <code>&quot;password expired&quot;</code>, <code>&quot;confirm your details&quot;</code>. Regex for URL: <code>/https?:\/\/[^\s]+/i</code></li>
+<li><strong>Mapped Policy Category:</strong> <code>Phishing-Attempt-Basic</code></li>
+<li><strong>Individual Confidence:</strong> <code>0.80</code></li>
+<li><strong>Early Exit Rule:</strong> <code>false</code> (Serves as a strong signal for Layer 2, as context is key for phishing).</li>
+<li><strong>Fallback Relevance:</strong> Provides basic phishing signal if LLM is unavailable.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_EXCESSIVE_CAPITALIZATION</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects excessive use of uppercase letters, a common spam indicator.</li>
+<li><strong>Type:</strong> <code>regex</code></li>
+<li><strong>Example Patterns:</strong> <code>[/(?:[A-Z]\s*){15,}/]</code> (e.g., 15 or more capital letters, possibly separated by spaces, indicating a large portion of the message is capitalized or contains long capitalized sequences. This regex might need refinement based on message length considerations).</li>
+<li><strong>Mapped Policy Category:</strong> <code>Content-Evasion-Spam</code></li>
+<li><strong>Individual Confidence:</strong> <code>0.70</code></li>
+<li><strong>Early Exit Rule:</strong> <code>false</code></li>
+<li><strong>Fallback Relevance:</strong> Catches a common spam tactic.</li>
+</ul></li>
+<li><p><strong>Rule:</strong> <code>L1_EXCESSIVE_SPECIAL_CHARACTERS</code></p>
+
+<ul>
+<li><strong>Description:</strong> Detects an unusually high ratio or long sequences of special characters.</li>
+<li><strong>Type:</strong> <code>regex</code></li>
+<li><strong>Example Patterns:</strong> <code>[/[!@#$%^&amp;*()_+\-=\[\]{};&#39;:&quot;\\|,.&lt;&gt;\/?\s]{7,}/]</code> (e.g., 7 or more consecutive special characters or spaces, indicating potential obfuscation).</li>
+<li><strong>Mapped Policy Category:</strong> <code>Content-Evasion-Spam</code></li>
+<li><strong>Individual Confidence:</strong> <code>0.70</code></li>
+<li><strong>Early Exit Rule:</strong> <code>false</code></li>
+<li><strong>Fallback Relevance:</strong> Catches another spam/evasion tactic.</li>
+</ul></li>
+</ol>
+
+<h3 id="4-4-layer-1-processing-logic-algorithm">4.4. Layer 1 Processing Logic Algorithm</h3>
+
+<p>The following steps are executed when Layer 1 processing is invoked:</p>
+
+<ol>
+<li> <strong>Initialization (within the main <code>message_analysis_report</code> which is being built):</strong>
+
+<ul>
+<li>Ensure <code>violation_details</code> is an empty list.</li>
+<li>Ensure <code>policy_category_scores</code> is an empty hash.</li>
+<li>(These are typically initialized when the <code>message_analysis_report</code> is first created, as per Section 6.1).</li>
+</ul></li>
+<li> <strong>Set Control Flag:</strong>
+
+<ul>
+<li><code>processing_halted = false</code>.</li>
+</ul></li>
+<li><p><strong>Iterate Through Loaded Layer 1 Rules:</strong></p>
+
+<ul>
+<li>For each <code>rule</code> in the service&#39;s loaded and pre-processed collection of Layer 1 rules (where each <code>rule</code> now contains its <code>name</code>, <code>description</code>, <code>individual_confidence</code>, <code>mapped_policy_category</code>, <code>is_early_exit_rule</code>, <code>early_exit_threshold</code>, and its <code>compiled_patterns</code> which is an array of <code>Regexp</code> objects):
+
+<ul>
+<li>a.  Set <code>found_match_for_this_rule = false</code>.</li>
+<li>b.  Set <code>matched_text_for_this_rule = nil</code>.</li>
+<li>c.  <strong>Apply Compiled Patterns:</strong> Iterate through each <code>compiled_regex_pattern</code> in the <code>rule[&#39;compiled_patterns&#39;]</code> list:
+
+<ul>
+<li>i.  Attempt to match <code>compiled_regex_pattern</code> against the <code>message_body</code>.</li>
+<li>ii. If a match is successful (e.g., <code>match_data = compiled_regex_pattern.match(message_body)</code> returns a <code>MatchData</code> object):
+
+<ol>
+<li> Set <code>found_match_for_this_rule = true</code>.</li>
+<li> Set <code>matched_text_for_this_rule = match_data[0]</code> (capturing the full text that matched the pattern).</li>
+<li> <strong>Break</strong> from iterating through this specific rule&#39;s <code>compiled_regex_pattern</code> list (as one pattern match is sufficient to consider the rule triggered).</li>
+</ol></li>
+</ul></li>
+<li>d.  <strong>Process Finding if Match Occurred:</strong> If <code>found_match_for_this_rule</code> is <code>true</code>:
+
+<ul>
+<li>i.  Construct a <code>violation_detail</code> hash:
+
+<ul>
+<li><code>layer: 1</code></li>
+<li><code>filter_type: rule[&#39;name&#39;]</code></li>
+<li><code>description: rule[&#39;description&#39;]</code></li>
+<li><code>matched_value: matched_text_for_this_rule</code></li>
+<li><code>individual_confidence: rule[&#39;individual_confidence&#39;]</code></li>
+<li><code>policy_category: rule[&#39;mapped_policy_category&#39;]</code></li>
+</ul></li>
+<li>ii. Add this <code>violation_detail</code> to <code>message_analysis_report.violation_details</code>.</li>
+<li>iii.Update <code>message_analysis_report.policy_category_scores</code>:
+
+<ul>
+<li>Let <code>category = rule[&#39;mapped_policy_category&#39;]</code>.</li>
+<li>Let <code>current_score = rule[&#39;individual_confidence&#39;]</code>.</li>
+<li>If <code>category</code> already exists in <code>policy_category_scores</code>, set its value to <code>[policy_category_scores[category], current_score].max</code>.</li>
+<li>Else, add <code>category</code> with <code>current_score</code>.</li>
+</ul></li>
+<li>iv. <strong>Check for Early Exit:</strong>
+
+<ul>
+<li>If <code>rule[&#39;is_early_exit_rule&#39;]</code> is <code>true</code> AND <code>rule[&#39;individual_confidence&#39;] &gt;= rule[&#39;early_exit_threshold&#39;]</code>:
+
+<ol>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+</ol></li>
+</ul></li>
+</ul></li>
+<li>e.  If <code>processing_halted</code> became <code>true</code> in the step above (due to an early exit), <strong>break</strong> from the main loop that iterates through all Layer 1 <code>rule</code> definitions (as processing stops).</li>
+</ul></li>
+</ul></li>
+<li><p><strong>Conclude Layer 1:</strong></p>
+
+<ul>
+<li>If <code>processing_halted</code> is <code>true</code> (due to a Layer 1 early exit), Layer 2 analysis is skipped. The <code>message_analysis_report</code> (with fields like <code>result</code>, <code>reason</code>, <code>confidence</code> set by the early exit rule) is now substantially complete from Layer 1&#39;s perspective. (The overall algorithm in Section 6 will then proceed to step 5 for rewrite suggestions if applicable).</li>
+</ul></li>
+</ol>
+
+<h1 id="5-layer-2-advanced-llm-powered-analysis-google-cloud-ecosystem">5. Layer 2: Advanced LLM-Powered Analysis (Google Cloud Ecosystem)</h1>
+
+<h2 id="5-1-purpose">5.1. Purpose</h2>
+
+<p>To perform a deep, contextual analysis of messages that are not definitively flagged by Layer 1&#39;s high-confidence early-exit rules. Layer 2 aims to identify nuanced violations, interpret subtleties, and synthesize multiple signals to assess compliance against a comprehensive list of 19 policy characteristics.</p>
+
+<h3 id="5-1-1-defined-layer-2-policy-characteristics">5.1.1 Defined Layer 2 Policy Characteristics</h3>
+
+<p>Layer 2 analysis involves prompting the Gemini API against each of the following 19 defined policy characteristics. For each characteristic, a curated snippet from relevant &quot;Knowledge Sources&quot; (e.g., Twilio&#39;s Acceptable Use Policy, Messaging Policy, and general carrier guidelines) is provided as additional context to the LLM to help guide its assessment.</p>
+
+<p>The list of characteristics is configurable, but the core set includes:</p>
+
+<ol>
+<li> <strong><code>MisleadingSenderIdentity</code></strong>: Assesses if the sender is not clearly or accurately identified, or if there are signs of impersonation.</li>
+<li> <strong><code>FalseOrInaccurateContent</code></strong>: Evaluates if the content is verifiably false, misleading, or could deceive a recipient.</li>
+<li> <strong><code>HatefulContent</code></strong>: Screens for content promoting hate, discrimination, disparagement, or violence against protected groups (Corresponds to SHAFT-H).</li>
+<li> <strong><code>ServiceInterferenceOrFilterEvasion</code></strong>: Identifies tactics used specifically to evade detection systems or interfere with service operations (distinct from general content evasion patterns addressed by <code>AdvancedContentEvasionTactics</code>).</li>
+<li> <strong><code>SHAFT_Sex_AdultContent</code></strong>: Checks for explicit adult content, themes, or solicitation inappropriate for general SMS or violating SHAFT-S policies.</li>
+<li> <strong><code>SHAFT_Alcohol_ProhibitedPromotion</code></strong>: Assesses promotions of alcohol for compliance with age-gating, local laws, and carrier restrictions (SHAFT-A).</li>
+<li> <strong><code>SHAFT_Firearms_IllegalPromotion</code></strong>: Evaluates promotions or sales of firearms, particularly those that are illegal, unregulated, or under high scrutiny (SHAFT-F).</li>
+<li> <strong><code>SHAFT_Tobacco_ProhibitedPromotion</code></strong>: Screens promotions of tobacco, nicotine, or vaping products for compliance with age-gating, local laws, and carrier restrictions (SHAFT-T).</li>
+<li> <strong><code>ProhibitedSubstances_CannabisCBDKratom</code></strong>: Specifically checks for content related to Cannabis, CBD, or Kratom, which have stringent carrier restrictions.</li>
+<li><strong><code>RegulatedPharmaceuticals_PrescriptionOffers</code></strong>: Identifies offers for prescription medications or other regulated pharmaceuticals not permissible over-the-counter or via unsolicited SMS.</li>
+<li><strong><code>FraudulentOrMaliciousContent</code></strong>: Detects broader fraudulent claims, scams, or content indicative of malicious intent beyond specific phishing attempts.</li>
+<li><strong><code>HighRiskFinancialServices</code></strong>: Screens for promotions of high-risk financial products like payday loans, debt relief programs with questionable claims, or certain types of cryptocurrency offerings.</li>
+<li><strong><code>ProhibitedAffiliateMarketing</code></strong>: Identifies messages primarily focused on third-party lead generation or affiliate marketing schemes that are often restricted.</li>
+<li><strong><code>RestrictedDebtCollection</code></strong>: Assesses messages related to third-party debt collection for compliance with regulations and carrier policies.</li>
+<li><strong><code>GetRichQuickSchemes</code></strong>: Filters promotions for unrealistic financial schemes, work-from-home scams, or pyramid schemes.</li>
+<li><strong><code>GamblingPromotions</code></strong>: Checks for the promotion of gambling content, which is highly regulated and often restricted.</li>
+<li><strong><code>PhishingAndDeceptiveURLs</code></strong>: Focuses on attempts to fraudulently obtain sensitive information or the use of misleading/harmful URLs.</li>
+<li><strong><code>ProhibitedPublicURLShorteners</code></strong>: Assesses the use of common public URL shorteners if not caught by Layer 1, as these are often flagged by carriers.</li>
+<li><strong><code>AdvancedContentEvasionTactics</code></strong>: Uses LLM capabilities to detect nuanced content evasion techniques (e.g., subtle misspellings, unusual Unicode, complex rephrasing) that might bypass simpler Layer 1 regex/keyword checks.</li>
+</ol>
+
+<p><strong><em>Note on Excluded Categories for Future Consideration:</em></strong> Characteristics like <code>A2P 10DLC Non-Compliance</code>, <code>Lack of Valid Consent</code>, and <code>IllegalContentJurisdictional</code> were excluded from the current scope as they require message metadata beyond the <code>message_body</code> itself (e.g., campaign registration details, consent status, recipient jurisdiction). Future iterations of the service could potentially incorporate these if such metadata can be provided as additional input.</p>
+
+<h2 id="5-2-trigger-condition">5.2. Trigger Condition</h2>
+
+<p>Layer 2 analysis is executed only if Layer 1 processing completes without triggering an &quot;early exit.&quot;</p>
+
+<h2 id="5-3-core-engine-google-gemini-api">5.3. Core Engine: Google Gemini API</h2>
+
+<ul>
+<li><strong>Role:</strong> Gemini acts as the central &quot;brain&quot; for Layer 2. For each of the 19 defined policy characteristics relevant to the message, Gemini is specifically prompted to assess that characteristic. It considers the message text along with contextual information provided by auxiliary APIs.</li>
+<li><p><strong>Prompting Strategy: Direct Category Prompting:</strong></p>
+
+<ul>
+<li>For each policy characteristic (e.g., &quot;Phishing,&quot; &quot;Hateful Content,&quot; &quot;SHAFT-Alcohol&quot;), a unique, carefully crafted prompt is sent to the Gemini API.</li>
+<li>This prompt explicitly asks Gemini to evaluate the message against that specific characteristic and to return a confidence score (0.0-1.0) indicating the likelihood of violation, along with a brief textual rationale for its assessment.</li>
+<li>Example <strong>Prompt for &quot;Phishing&quot; Characteristic:</strong></li>
+</ul>
+
+<pre class="code bash"><code class="bash">    Analyze the following SMS message content and associated information for &#39;Phishing&#39; indicators.
+    Message Body: &#39;[message_body_text_here]&#39;
+    Associated URL (if any): &#39;[URL_here_or_N/A]&#39;
+    Google Safe Browse API Result for URL: &#39;[SafeBrowse_status_or_N/A]&#39;
+    Policy Context for PhishingAndDeceptiveURLs:
+    &quot;[Curated text from Knowledge Source, e.g., &#39;Phishing is any attempt to deceptively acquire sensitive information. Misleading links are prohibited. (Source: Twilio AUP, Carrier Policies)&#39;]&quot;
+
+    Based on all the above, including the provided policy context, assess the likelihood that this message constitutes a &#39;Phishing&#39; attempt according to standard industry definitions (e.g., attempts to deceptively acquire sensitive
+    information like usernames, passwords, credit card details, or other personal data).
+
+    Provide your response as a JSON object with two keys:
+    1. &quot;phishing_confidence_score&quot;: A float between 0.0 (no confidence of phishing) and 1.0
+        (high confidence of phishing).
+    2. &quot;phishing_rationale&quot;: A brief textual explanation for your score.
+</code></pre>
+
+<ul>
+<li>Similar specific prompts are designed for each of the 19 policy characteristics, tailoring the input signals and descriptive criteria.</li>
+<li><strong>Why this strategy?</strong> Direct Category Prompting gives precise control over what Gemini evaluates, aligns its output directly with the service&#39;s internal policy categories, and makes parsing responses straightforward, largely obviating the need for a complex <code>LLM_CATEGORY_MAPPING</code> system.</li>
+</ul></li>
+</ul>
+
+<h2 id="5-4-auxiliary-apis-their-integration-as-inputs-to-gemini">5.4. Auxiliary APIs &amp; Their Integration as Inputs to Gemini</h2>
+
+<p><strong><em>Overall Approach to Auxiliary APIs for Layer 2:</em></strong> These specialized APIs are primarily used to gather contextual signals that are fed into the Gemini prompts for each relevant policy characteristic. Additionally, the data (or absence thereof) obtained from these APIs during an initial pre-analysis phase (e.g., presence of URLs, extracted entities from Cloud NL) also informs the decision of whether a specific Layer 2 characteristic is relevant for the current message, helping to optimize LLM calls. If an auxiliary API call intended to provide data for a relevancy check fails (e.g., Cloud NL API is temporarily unavailable), the system is designed to robustly default to considering the dependent characteristics as relevant, ensuring they are still assessed by Gemini rather than being incorrectly skipped.</p>
+
+<ul>
+<li><p><strong>Google Safe Browse API (<code>threatMatches.find</code>):</strong></p>
+
+<ul>
+<li>All URLs extracted from the <code>message_body</code> are submitted.</li>
+<li>The API response (e.g., <code>threatType</code>: <code>MALWARE</code>, <code>SOCIAL_ENGINEERING</code>, <code>POTENTIALLY_HARMFUL_APPLICATION</code>, <code>UNWANTED_SOFTWARE</code>, or no threat found) for each URL is provided to Gemini prompts for characteristics like &quot;Phishing &amp; Deceptive URLs,&quot; &quot;Fraudulent or Malicious Content.&quot;</li>
+</ul></li>
+<li><p><strong>Google Perspective API (<code>comments.analyze</code>):</strong></p>
+
+<ul>
+<li>The <code>message_body</code> is sent to Perspective API requesting scores for attributes such as <code>TOXICITY</code>, <code>SEVERE_TOXICITY</code>, <code>IDENTITY_ATTACK</code>, <code>INSULT</code>, <code>PROFANITY</code>, <code>THREAT</code>, <code>SEXUALLY_EXPLICIT</code>.</li>
+<li>These numerical scores (0.0-1.0) are provided to Gemini prompts for relevant characteristics like &quot;Hateful Content,&quot; &quot;SHAFT-Sex,&quot; &quot;Misleading Sender Identity/Origin&quot; (if tone is aggressive/insulting), etc.</li>
+</ul></li>
+<li><p><strong>Google Cloud Natural Language API (<code>analyzeEntities</code>, <code>analyzeSyntax</code>):</strong></p>
+
+<ul>
+<li>Used to pre-process the <code>message_body</code> for tasks like:
+
+<ul>
+<li>Extracting entities (names of people, organizations, locations, products like drug names via <code>analyzeEntities</code>).</li>
+<li>Potentially identifying unusual syntactic structures or token patterns via <code>analyzeSyntax</code> if needed for specific evasion detection characteristics.</li>
+</ul></li>
+<li>These extracted entities or structural observations are provided as context to Gemini for specific prompts (e.g., when assessing &quot;Prescription Medication Offers,&quot; extracted drug names are crucial).</li>
+</ul></li>
+</ul>
+
+<h2 id="5-5-layer-2-processing-logic-algorithm">5.5. Layer 2 Processing Logic Algorithm</h2>
+
+<ol>
+<li><p>For each of the 19 policy characteristics defined for Layer 2 analysis (this list of characteristics is configurable):</p>
+
+<ul>
+<li><p>a. <strong>Determine if this characteristic is relevant for LLM assessment:</strong>
+This step aims to optimize LLM calls by skipping assessment for characteristics that are clearly inapplicable based on pre-analyzed message features. The system defaults to considering a characteristic relevant unless specific conditions to skip it are met and the data needed to evaluate those conditions is available.</p>
+
+<ul>
+<li>i. <strong>Pre-Analysis of Message Features (performed once before this loop):</strong>
+
+<ul>
+<li>Extract URLs (Regex): <code>message_features[&#39;urls_present&#39;]</code> (boolean), <code>message_features[&#39;url_list&#39;]</code> (array).</li>
+<li>Attempt Google Cloud NL API Call: <code>message_features[&#39;nl_api_call_succeeded&#39;]</code> (boolean), <code>message_features[&#39;nl_api_entities&#39;]</code> (array of entities, or empty if call failed or no entities found).</li>
+<li>(Other pre-analysis steps can be added here as the system evolves).</li>
+</ul></li>
+<li>ii. <strong>Evaluate Relevancy for the Current <code>[CharacteristicName]</code>:</strong>
+
+<ol>
+<li>Assume <code>is_relevant_for_llm = true</code> by default.</li>
+<li>Retrieve any <code>relevancy_skip_conditions</code> defined for the current <code>[CharacteristicName]</code> from its YAML configuration (see Section 8). These conditions specify situations where the LLM check can be skipped.</li>
+<li>If <code>relevancy_skip_conditions</code> are defined, evaluate them:
+
+<ul>
+<li><strong>Example Condition Type 1: <code>skip_if_no_urls</code></strong> (used for <code>PhishingAndDeceptiveURLs</code>, <code>ProhibitedPublicURLShorteners</code>):
+
+<ul>
+<li></li>
+</ul></li>
+<li><strong>Example Condition Type 2: <code>skip_if_no_specific_entities</code></strong> (e.g., for <code>RegulatedPharmaceuticals_PrescriptionOffers</code>, condition might be <code>{&quot;type&quot;: &quot;skip_if_no_specific_entities&quot;, &quot;entity_type&quot;: &quot;DRUG&quot;}</code>):
+
+<ul>
+<li></li>
+<li></li>
+</ul></li>
+<li>(The system can be extended with more <code>type</code>s of <code>relevancy_skip_conditions</code> in the future.)</li>
+</ul></li>
+<li>If, after evaluating all its <code>relevancy_skip_conditions</code>, <code>is_relevant_for_llm</code> is <code>true</code>, proceed to step 5.5.1.b (Gather all necessary input signals for this characteristic).</li>
+<li>Else (if <code>is_relevant_for_llm</code> is <code>false</code>), skip LLM analysis for this characteristic for this message.
+
+<ul>
+<li>A <code>violation_detail</code> may still be added with a note like <code>description: &quot;LLM assessment for [CharacteristicName] skipped as message did not meet relevancy criteria (e.g., no URLs found).&quot;</code>, <code>individual_confidence: 0.0</code>.</li>
+<li>The corresponding <code>policy_category_scores</code> entry for this characteristic will be 0.0 or omitted.</li>
+</ul></li>
+</ol></li>
+</ul></li>
+<li><p>b. Gather all necessary input signals for this characteristic:</p>
+
+<ul>
+<li>i. The full <code>message_body</code>.</li>
+<li>ii. Curated policy context from knowledge sources for the current characteristic (e.g., a snippet from Twilio&#39;s AUP defining the violation).</li>
+<li>iii. Results from Google Safe Browse API for any URLs (if URLs are present in the message and the API call was successful; otherwise, this signal indicates unavailability or no URLs).</li>
+<li>iv. Scores from Google Perspective API (if the API call was successful; otherwise, this signal indicates unavailability).</li>
+<li>v. Entities extracted by Cloud Natural Language API (if the API call was successful; otherwise, this signal indicates unavailability).</li>
+</ul></li>
+<li><p>c. <strong>Construct the Specific, Tailored Prompt for Gemini:</strong>
+For each relevant policy characteristic (as determined in step 5.5.1.a), a unique and carefully crafted prompt is dynamically constructed to guide the Gemini LLM&#39;s assessment. This process adheres to the following principles and incorporates the gathered signals:</p>
+
+<ul>
+<li><strong>Configuration-Driven Prompt Templates:</strong>
+
+<ul>
+<li>The base structure for each prompt is defined as a template within the Layer 2 policy characteristic configuration (e.g., in <code>sms_policy_checker_llm_config.yml</code>, as per Section 8). Each of the 19 characteristics will have its own distinct prompt template.</li>
+<li>This approach allows for fine-tuning prompts for individual characteristics without code changes, aligning with Rails best practices of separating configuration from code.</li>
+</ul></li>
+<li><strong>Dynamic Population with Contextual Signals:</strong>
+The selected prompt template for the current <code>[CharacteristicName]</code> is populated with the following information, gathered in step 5.5.1.b:
+
+<ol>
+<li> <strong>Full <code>message_body</code>:</strong> The entire content of the SMS message is provided to give Gemini maximum context.</li>
+<li> <strong>Target <code>[CharacteristicName]</code>:</strong> The prompt clearly states which of the 19 policy characteristics Gemini should assess (e.g., &quot;PhishingAndDeceptiveURLs,&quot; &quot;HatefulContent&quot;).</li>
+<li> <strong>Curated <code>policy_context_snippet</code>:</strong> The specific text snippet from knowledge sources (e.g., Twilio AUP) relevant to the current <code>[CharacteristicName]</code> is injected. This anchors the LLM&#39;s assessment in defined policy language.</li>
+<li> <strong>Auxiliary API Signals (Formatted and Conditional):</strong>
+
+<ul>
+<li><strong>Google Safe Browse API Results:</strong> If URLs were present and the Safe Browse API call was successful, a summary of findings (e.g., &quot;URL [url1] flagged for MALWARE; URL [url2] found no threats.&quot;) is included. If no URLs were present, or the API call failed, this is noted appropriately (e.g., &quot;Safe Browse: No URLs in message,&quot; or &quot;Safe Browse: Data unavailable&quot;).</li>
+<li><strong>Google Perspective API Scores:</strong> Relevant scores (e.g., &quot;Perspective API Scores - TOXICITY: 0.75, THREAT: 0.2, SEXUALLY_EXPLICIT: 0.1&quot;) are included if the API call was successful. If the call failed, &quot;Perspective API: Data unavailable&quot; is indicated.</li>
+<li><strong>Google Cloud Natural Language API Entities:</strong> Key extracted entities and their types (e.g., &quot;Detected Entities: [Aspirin (DRUG), Arist (ORGANIZATION)]&quot;) are provided if the API call was successful and relevant entities were found. If not, &quot;Cloud NL Entities: No relevant entities detected&quot; or &quot;Cloud NL API: Data unavailable&quot; is used.</li>
+</ul></li>
+<li>The prompt structure ensures that Gemini is aware of which signals are available and which are not, allowing it to make the best possible assessment with the given information.</li>
+</ol></li>
+<li><strong>Explicit Instruction for Structured JSON Output:</strong>
+
+<ul>
+<li>Following the strategy outlined in Section 5.3, the prompt explicitly instructs Gemini to return its response as a JSON object.</li>
+<li>This JSON object must contain two keys:
+
+<ol>
+<li> <code>confidence_score</code> (Float): A score between 0.0 (no confidence of violation for this characteristic) and 1.0 (high confidence of violation). The key name in the JSON response from Gemini might be dynamically tied to the characteristic for easier parsing (e.g., <code>&quot;[CharacteristicName]_confidence_score&quot;</code> as shown in the example in Section 5.3, or a generic key if preferred).</li>
+<li> <code>rationale</code> (String): A brief textual explanation from Gemini for its assessed confidence score regarding this specific characteristic.</li>
+</ol></li>
+<li>This enforced structure is critical for reliably parsing Gemini&#39;s response in step 5.5.1.f.</li>
+</ul></li>
+<li><strong>Implementation Note (Ruby/Rails):</strong>
+
+<ul>
+<li>In the Ruby implementation, this dynamic prompt construction would typically involve loading the appropriate template string and using string formatting methods (e.g., <code>sprintf</code>, <code>String#%</code>, or a more sophisticated templating engine if prompts become extremely complex) to inject the contextual signals. API client wrappers (as a Rails best practice) would provide the auxiliary API data in a consistent format, including error/unavailability states.</li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ol>
+
+<pre class="code ruby"><code class="ruby">* d. Make the API call to Gemini.
+* e. Handle potential API errors (e.g., timeouts, rate limits – these contribute to the decision to enter Fallback Mode if persistent).
+* f. Parse Gemini&#39;s JSON response to extract the `confidence_score` and `rationale` for the assessed characteristic.
+* g. Construct a `violation_detail` hash:
+    * `layer: 2`
+    * `filter_type: &quot;Gemini:[CharacteristicName]&quot;` (e.g., &quot;Gemini:Phishing&quot;)
+    * `description: [Gemini&#39;s textual rationale]`
+    * `matched_value: [Relevant message snippet or N/A]`
+    * `individual_confidence: [Gemini&#39;s confidence_score for this characteristic]`
+    * `policy_category: [The CharacteristicName itself, as it&#39;s directly prompted]`
+* h. Add this `violation_detail` to `message_analysis_report.violation_details`.
+    * i. Update `message_analysis_report.policy_category_scores`:
+        * Let `category = [The CharacteristicName]`.
+        * Let `current_score = [Gemini&#39;s confidence_score]`.
+        * If `category` already exists in `policy_category_scores`, set its value to `[policy_category_scores[category], current_score].max`.
+        * Else, add `category` with `current_score`.
+</code></pre>
+
+<ol>
+<li>After all relevant characteristics have been assessed by Gemini, proceed to the Final Decision Logic.</li>
+</ol>
+
+<h1 id="6-final-decision-logic-overall-algorithm">6. Final Decision Logic &amp; Overall Algorithm</h1>
+
+<p>This logic determines the final <code>message_analysis_report</code> after Layer 1 and, if applicable, Layer 2 have completed their processing.</p>
+
+<ol>
+<li><strong>Initialization:</strong></li>
+</ol>
+
+<pre class="code ruby"><code class="ruby">- Create `message_analysis_report` with default &quot;pass&quot; status:
+    * `result: :pass`
+    * `reason: &quot;Compliant&quot;`
+    * `confidence: 0.0`
+    * `rewrite_suggestion: nil`
+    * `processing_mode: :full_analysis `(default, may change to `:fallback_layer1_only` if APIs fail)
+    * `policy_category_scores: {}`
+    * `violation_details: []`
+* Load `FINAL_THRESHOLD_FLAG` from YAML configuration (e.g., 0.75). This is the general threshold above which a message is considered failing if no critical or Layer 1 early exit occurs.
+</code></pre>
+
+<ol>
+<li><strong>Execute Layer 1 Processing Logic:</strong></li>
+</ol>
+
+<pre class="code ruby"><code class="ruby">* As described in section 4.4.
+* If Layer 1 results in an &quot;early exit&quot; (`processing_halted = true`):
+    * The `message_analysis_report` fields (`result`, `confidence`, `reason`) are already set by the Layer 1 logic as described in Section 4.4.b.iv.
+    * Proceed to Step 5 (Message Rewrite Suggestion) if `message_analysis_report.result == :fail`. Then Return.
+</code></pre>
+
+<ol>
+<li><strong>Execute Layer 2 Processing Logic (if no Layer 1 early exit):</strong></li>
+</ol>
+
+<ul>
+<li>As described in section 5.5.</li>
+<li><p>After all characteristics are processed by Gemini and <code>violation_details</code> and <code>policy_category_scores</code> are populated from Layer 2:</p>
+
+<ul>
+<li>a.  <strong>Critical Failure Check:</strong> Iterate through the predefined &quot;Critical Failure&quot; categories and their configured thresholds (loaded from YAML). These are checked first.
+
+<ul>
+<li><strong>&quot;Phishing &amp; Deceptive URLs&quot;:</strong> If <code>policy_category_scores[&quot;Phishing&quot;] &gt;= 0.95</code> (configurable threshold).</li>
+<li><strong>&quot;Hateful Content&quot;:</strong> If <code>policy_category_scores[&quot;Hateful Content&quot;] &gt;= 0.95</code>.</li>
+<li><strong>&quot;Illegal Content (direct promotion/solicitation of federally illegal activities/substances, or credible threats of violence)&quot;:</strong> If <code>policy_category_scores[&quot;Illegal Content&quot;] &gt;= 0.98</code>.</li>
+<li><strong>&quot;SHAFT Content - Firearms (Direct, unregulated sale/transfer)&quot;:</strong> If <code>policy_category_scores[&quot;SHAFT-Firearms&quot;] &gt;= 0.95</code>.</li>
+<li><strong>&quot;SHAFT Content - Sex (Explicit, non-consensual, or illegal child-related content)&quot;:</strong> If <code>policy_category_scores[&quot;SHAFT-Sex&quot;] &gt;= 0.98</code>.</li>
+<li><strong>&quot;Fraudulent or Malicious Content (Blatant, High-Confidence Scams)&quot;:</strong> If <code>policy_category_scores[&quot;Fraudulent Content&quot;] &gt;= 0.95</code>.</li>
+<li>If any of these critical failure conditions are met:
+
+<ol>
+<li> Set <code>message_analysis_report.result = :fail</code>.</li>
+<li> Set <code>message_analysis_report.confidence = [the Gemini score for the critical category]</code>.</li>
+<li> Set <code>message_analysis_report.reason = [the name of the critical category]</code>.</li>
+<li> Proceed to Step 5 (Message Rewrite Suggestion). Then Return.</li>
+</ol></li>
+</ul></li>
+<li>b.  <strong>Max Score Fallback (if no critical failures from Layer 2):</strong>
+
+<ul>
+<li>i.  Initialize <code>max_observed_score = 0.0</code> and <code>leading_category_for_fail = &quot;Compliant&quot;</code>.</li>
+<li>ii. Iterate through all scores in <code>message_analysis_report.policy_category_scores</code> (these now include contributions from relevant Layer 1 findings that weren&#39;t early exits, and all Layer 2 Gemini assessments).
+
+<ol>
+<li> If a <code>score &gt; max_observed_score</code>, update <code>max_observed_score</code> to this <code>score</code> and <code>leading_category_for_fail</code> to its corresponding <code>policy_category</code>.</li>
+</ol></li>
+<li>iii.Set <code>message_analysis_report.confidence = max_observed_score</code>.</li>
+<li>iv. If <code>max_observed_score &gt;= FINAL_THRESHOLD_FLAG</code>:
+
+<ol>
+<li> Set <code>message_analysis_report.result = :fail</code>.</li>
+<li> Set <code>message_analysis_report.reason = leading_category_for_fail</code>.</li>
+</ol></li>
+<li>v.  Else (if <code>max_observed_score &lt; FINAL_THRESHOLD_FLAG</code>):
+
+<ol>
+<li> Set <code>message_analysis_report.result = :pass</code>.</li>
+<li> <code>message_analysis_report.reason</code> remains &quot;Compliant&quot; (or could be updated to reflect the highest non-violating score if desired, but &quot;Compliant&quot; is simpler for a pass).</li>
+<li> The <code>confidence</code> score (which is <code>max_observed_score</code>) will be below the threshold.</li>
+</ol></li>
+</ul></li>
+</ul></li>
+</ul>
+
+<ol>
+<li><strong>Error Handling during API calls (leading to Fallback Mode):</strong></li>
+</ol>
+
+<pre class="code ruby"><code class="ruby">* If, during Layer 2 processing, an essential API (like Gemini) becomes consistently unavailable (e.g., due to repeated timeouts, 5xx errors, or auth failures):
+    * a. Log the API errors extensively.
+    * b. The service should gracefully switch to Fallback Mode (see Section 7). Set `message_analysis_report.processing_mode = :fallback_layer1_only`.
+    * c. The final decision will then be based only on Layer 1&#39;s findings as detailed in Section 7. Processing of further Layer 2 characteristics stops.
+</code></pre>
+
+<ol>
+<li><strong>Message Rewrite Suggestion (conditionally executed):</strong></li>
+</ol>
+
+<pre class="code ruby"><code class="ruby">* This step is performed if:
+    * `message_analysis_report.result == :fail` AND
+    * `message_analysis_report.processing_mode == :full_analysis` (i.e., not in fallback).
+* If these conditions are not met, `message_analysis_report.rewrite_suggestion` remains `nil`.
+
+* **LLM Used:** The same Gemini model instance used for content analysis.
+
+* **Prompt Construction:**
+    * Inputs: Original `message_body`, `message_analysis_report.reason` (primary category of failure), `message_analysis_report.confidence`.
+    * Instruction: The LLM is prompted with a multi-part task.
+        1.  It is asked to analyze the original message in light of the failure reason.
+        2.  If it determines the message is **uncorrectable**, it is instructed to respond *only* with the text: &quot;This message cannot be made compliant due to: [LLM explains why]&quot;.
+        3.  If it determines the message is **correctable**, it is instructed to provide a structured response (preferably JSON, to be parsed into a Hash) containing two distinct pieces of information:
+            * `general_fix_suggestions` (String): General advice on how to avoid the identified violation.
+            * `literal_rewrite` (String): A suggested compliant rewritten version of the message.
+    * (The exact phrasing of this prompt, including instructions for JSON output if desired, will be critical and require careful design and testing.)
+
+* **LLM Call and Response Handling:**
+    * An API call is made to Gemini with the crafted multi-part prompt.
+    * The service then processes Gemini&#39;s response:
+        1.  If the response text from Gemini starts with &quot;This message cannot be made compliant due to:&quot;, this full string response is stored directly in `message_analysis_report.rewrite_suggestion`.
+        2.  Else, the service attempts to parse Gemini&#39;s response as the structured suggestion (e.g., as JSON into the two-key Hash for `general_fix_suggestions` and `literal_rewrite`).
+            * If parsing is successful and both required fields are present, this Hash is stored in `message_analysis_report.rewrite_suggestion`.
+        3.  If Gemini&#39;s response does not match the &quot;uncorrectable&quot; string format and also cannot be successfully parsed into the expected two-key Hash (e.g., malformed JSON, missing keys, empty response, generic error message, or LLM content filters block the output, or an API error occurred), `message_analysis_report.rewrite_suggestion` is set to `nil`.
+</code></pre>
+
+<ol>
+<li><strong>Return</strong> <code>message_analysis_report</code>.</li>
+</ol>
+
+<h1 id="7-fallback-mode-api-unavailability">7. Fallback Mode: API Unavailability</h1>
+
+<p>This mode is critical for ensuring the service remains partially functional even if its external LLM dependencies are unavailable.</p>
+
+<ul>
+<li><strong>Trigger:</strong> Persistent failures in calls to essential Layer 2 APIs (Gemini, Perspective, Safe Browse).</li>
+<li><strong>Behavior:</strong>
+
+<ol>
+<li>The <code>message_analysis_report.processing_mode</code> is set to <code>:fallback_layer1_only</code>.</li>
+<li>No Layer 2 API calls are attempted or retried further for the current message.</li>
+<li>The final decision is based solely on the outcomes of the Layer 1 Rule-Based Pre-filters.</li>
+<li><code>rewrite_suggestion</code> will be <code>nil</code>.</li>
+</ol></li>
+<li><strong>Decision Logic in Fallback Mode:</strong>
+
+<ol>
+<li><strong>Layer 1 Early Exit:</strong> If a Layer 1 rule (marked as <code>is_early_exit_rule</code>) matches with <code>individual_confidence &gt;= early_exit_threshold</code>:
+
+<ul>
+<li><code>result = :fail</code></li>
+<li><code>confidence = rule[&#39;individual_confidence&#39;]</code></li>
+<li><code>reason = &quot;Fallback: Early Exit - Violation Category: #{rule[&#39;mapped_policy_category&#39;]}&quot;</code></li>
+<li><code>violation_details</code> and <code>policy_category_scores</code> reflect this finding.</li>
+</ul></li>
+<li><strong>Layer 1 Threshold Assessment. (if no L1 early exit):</strong>
+
+<ul>
+<li>Let <code>max_l1_score</code> be the highest <code>individual_confidence</code> found among all triggered Layer 1 rules.</li>
+<li>Let <code>contributing_l1_rules</code> be the list of <code>violation_detail</code> objects from Layer 1, sorted by <code>individual_confidence</code> descending.</li>
+<li>Load <code>FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK</code> from YAML (e.g., 0.75, could be same or different from individual thresholds and <code>FINAL_THRESHOLD_FLAG</code>).</li>
+<li>If <code>max_l1_score &gt;= FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK</code>:
+
+<ul>
+<li><code>result = :fail</code></li>
+<li><code>confidence = max_l1_score</code></li>
+<li>Let <code>top_contributing_rule_category</code> be the <code>mapped_policy_category</code> of the Layer 1 rule that has the <code>max_l1_score</code>. (This can be found from the <code>contributing_l1_rules</code> list, specifically the category of the rule with the highest score).</li>
+<li><code>reason = &quot;Fallback: Layer 1 Threshold Exceeded - Violation Category: #{top_contributing_rule_category}&quot;</code></li>
+</ul></li>
+<li>Else (<code>max_l1_score &lt; FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK</code>):
+
+<ul>
+<li><code>result = :pass</code></li>
+<li><code>confidence = max_l1_score</code> (this will be 0.0 if no Layer 1 rules were triggered with confidence &gt; 0).</li>
+<li><code>reason = &quot;Fallback: Compliant.&quot;</code></li>
+</ul></li>
+</ul></li>
+<li>The violation_details and policy_category_scores in the report will only contain findings from Layer 1.</li>
+</ol></li>
+</ul>
+
+<p><strong>Why this fallback design?</strong> It ensures the service always provides a response, offers a baseline level of protection even during outages, and clearly communicates the limited nature of its analysis to the consuming application.</p>
+
+<h1 id="8-configuration-management-via-yaml">8. Configuration Management via YAML</h1>
+
+<p>All operational parameters and rules for the service are designed to be externalized into YAML configuration files, loaded by the Rails application.</p>
+
+<ul>
+<li><strong>Location:</strong> <code>config/</code> directory (e.g., <code>sms_policy_checker_rules.yml</code>, <code>sms_policy_checker_thresholds.yml</code>, <code>sms_policy_checker_llm_config.yml</code>).</li>
+<li><strong>Managed Configurations:</strong>
+
+<ul>
+<li><strong>Layer 1 Rules:</strong> Full definitions as described in Section 4.2 (name, description, type, patterns, mapped_policy_category, individual_confidence, is_early_exit_rule, early_exit_threshold).</li>
+<li><strong>Layer 2 Critical Failure Definitions:</strong> A list mapping policy categories to their critical failure confidence thresholds (e.g., <code>Phishing: 0.95</code>).</li>
+<li><strong>General Thresholds:</strong>
+
+<ul>
+<li><code>FINAL_THRESHOLD_FLAG</code> (for full analysis mode).</li>
+<li><code>FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK</code> (for Layer 1 fallback mode).</li>
+</ul></li>
+<li><strong>LLM Configuration:</strong> Specific model names/versions for Gemini (for analysis and for rewrites, though currently the same).
+
+<ul>
+<li><strong>Layer 2 Policy Characteristic Definitions (in <code>sms_policy_checker_llm_config.yml</code> or similar):</strong>
+
+<ul>
+<li>For each of the 19 characteristics, its definition can include:
+
+<ul>
+<li><code>name</code> (String): e.g., <code>PhishingAndDeceptiveURLs</code>.</li>
+<li><code>description</code> (String): For documentation.</li>
+<li><code>knowledge_source_context</code> (String): The curated text snippet from policy documents to provide to Gemini.</li>
+<li><code>relevancy_skip_conditions</code> (Array of Hashes, Optional): Conditions under which LLM assessment for this characteristic can be skipped. Each hash defines a condition type and its parameters. Examples:
+
+<ul>
+<li></li>
+<li></li>
+</ul></li>
+<li>(Other parameters like specific prompt templates or critical thresholds if not managed globally).
+The service logic for determining relevancy (Section 5.5.1.a) is designed to be extensible to support new <code>type</code>s of skip conditions defined here.</li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><strong>Loading Mechanism:</strong> These YAML files will be parsed at application boot (e.g., in an initializer) or loaded on demand by the service, with their content made available as structured data (hashes/arrays) for the service logic to consume.</li>
+</ul>
+
+<p><strong>Why YAML?</strong> For this project&#39;s scope where rule/threshold updates are not expected to be extremely frequent or require non-developer &quot;live&quot; changes, YAML offers a simple, human-readable, version-controllable way to manage configurations directly within the codebase.</p>
+
+<h1 id="9-efficiency-scalability-considerations">9. Efficiency &amp; Scalability Considerations</h1>
+
+<ul>
+<li><strong>Single Message Processing Interface:</strong> As detailed in Section 2.3, the service processes one message per call.</li>
+<li><strong>High-Volume Screening (10k+ messages):</strong> Efficiency for large volumes is primarily addressed by:
+
+<ol>
+<li><strong>Fast Layer 1 Pre-filters:</strong> Quickly dispositioning or flagging messages with obvious issues without LLM calls.</li>
+<li><strong>External Parallel Processing:</strong> The architecture relies on the calling system (e.g., a Rails application using ActiveJob with Sidekiq) to manage high throughput by invoking multiple instances of the SmsPolicyCheckerService concurrently for different messages.</li>
+<li>The intrinsic performance of the chosen Google Cloud APIs.</li>
+</ol></li>
+</ul>
+
+<p><strong>Why this approach?</strong> It keeps the service object&#39;s internal logic focused and testable, delegating the heavy lifting of concurrent execution and queue management to established Rails ecosystem tools like Sidekiq, which are designed for such tasks.</p>
+
+<h1 id="10-removed-requirements">10. Removed Requirements</h1>
+
+<ul>
+<li><strong>Strategy to Avoid Duplicate LLM Calls (Caching):</strong> The initial requirement to implement a caching strategy (e.g., using Redis) for LLM API calls and/or final service results has been <strong>explicitly removed</strong> from the project scope.
+
+<ul>
+<li><strong>Reason:</strong> Implementing a robust, granular, and effective caching mechanism for the complex and varied inputs to the LLM (especially for per-characteristic analysis) was deemed to add significant development complexity and testing overhead, which was not feasible within the project&#39;s timeframe and current priorities. The focus was shifted to ensuring the core filtering logic, fallback mechanisms, and LLM integration were sound. This means that LLM calls will be made as needed for each message analysis, even if similar content has been processed previously.</li>
+</ul></li>
+</ul>
+</div></div>
+
+      <div id="footer">
+  Generated on Sun May 11 17:52:35 2025 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.37 (ruby-3.4.3).
+</div>
+
+    </div>
+  </body>
+</html>

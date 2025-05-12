@@ -1,0 +1,2154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Class: Google::GeminiClient
+  
+    &mdash; SMS Policy Checker Service Documentation
+  
+</title>
+
+  <link rel="stylesheet" href="../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Google::GeminiClient";
+  relpath = '../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../_index.html">Index (G)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../Google.html" title="Google (module)">Google</a></span></span>
+     &raquo; 
+    <span class="title">GeminiClient</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Class: Google::GeminiClient
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+  <dl>
+    <dt>Inherits:</dt>
+    <dd>
+      <span class="inheritName">Object</span>
+      
+        <ul class="fullTree">
+          <li>Object</li>
+          
+            <li class="next">Google::GeminiClient</li>
+          
+        </ul>
+        <a href="#" class="inheritanceTree">show all</a>
+      
+    </dd>
+  </dl>
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>app/clients/google/gemini_client.rb</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    
+<h2 id="label-Google-3A-3AGeminiClient">Google::GeminiClient</h2>
+
+<p>Client for interacting with Google’s Generative Language API (Gemini). It supports generating content based on prompts, with specific configurations for schema-enforced JSON output.</p>
+
+<p>This client is used for:</p>
+
+<pre class="code ruby"><code class="ruby">- Analyzing SMS message characteristics against policies (`analyze_characteristic`).
+- Generating rewrite suggestions for non-compliant SMS messages (`generate_rewrite`).
+</code></pre>
+
+<h3 id="label-Configuration">Configuration</h3>
+<ul><li>
+<p>API Key: Requires a Google API key (via ‘GOOGLE_API_KEY` env var or param).</p>
+</li><li>
+<p>Model Name: Defaults to ‘DEFAULT_MODEL_NAME` but can be overridden.</p>
+</li></ul>
+
+<h3 id="label-Error+Handling">Error Handling</h3>
+<ul><li>
+<p>Methods return a Hash. On failure, this hash contains an ‘“error”` key with a description. Additional keys like `“details”`, `“block_reason”`, or `“safety_ratings”` may be present depending on the error context.</p>
+</li><li>
+<p>For ‘generate_rewrite`, a plain String response is also possible if the LLM determines a message is uncorrectable.</p>
+</li><li>
+<p>Logs detailed errors to ‘Rails.logger`.</p>
+</li></ul>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+  <div class="examples">
+    <h4 class="tag_title">Examples:</h4>
+    
+      
+        <h5 class="example_title"><div class='inline'>
+<p>Analyze Characteristic</p>
+</div></h5>
+      
+      <pre class="example code"><code><span class='id identifier rubyid_client'>client</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="../Google.html" title="Google (module)">Google</a></span></span><span class='op'>::</span><span class='const'>GeminiClient</span><span class='period'>.</span><span class='id identifier rubyid_new'><span class='object_link'><a href="#initialize-instance_method" title="Google::GeminiClient#initialize (method)">new</a></span></span>
+<span class='id identifier rubyid_prompt'>prompt</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Analyze this text for compliance.</span><span class='tstring_end'>&quot;</span></span>
+<span class='id identifier rubyid_response'>response</span> <span class='op'>=</span> <span class='id identifier rubyid_client'>client</span><span class='period'>.</span><span class='id identifier rubyid_analyze_characteristic'>analyze_characteristic</span><span class='lparen'>(</span><span class='id identifier rubyid_prompt'>prompt</span><span class='rparen'>)</span>
+<span class='kw'>if</span> <span class='id identifier rubyid_response'>response</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_puts'>puts</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Error: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_response'>response</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>error</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>else</span>
+  <span class='id identifier rubyid_puts'>puts</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Confidence: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_response'>response</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>confidence_score</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='embexpr_end'>}</span><span class='tstring_content'>, Rationale: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_response'>response</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>rationale</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></code></pre>
+    
+      
+        <h5 class="example_title"><div class='inline'>
+<p>Generate Rewrite</p>
+</div></h5>
+      
+      <pre class="example code"><code><span class='id identifier rubyid_client'>client</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="../Google.html" title="Google (module)">Google</a></span></span><span class='op'>::</span><span class='const'>GeminiClient</span><span class='period'>.</span><span class='id identifier rubyid_new'><span class='object_link'><a href="#initialize-instance_method" title="Google::GeminiClient#initialize (method)">new</a></span></span>
+<span class='id identifier rubyid_original_sms'>original_sms</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>This is a bad message.</span><span class='tstring_end'>&quot;</span></span>
+<span class='id identifier rubyid_reason'>reason</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Contains forbidden words.</span><span class='tstring_end'>&quot;</span></span>
+<span class='id identifier rubyid_confidence'>confidence</span> <span class='op'>=</span> <span class='float'>0.9</span>
+<span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span> <span class='op'>=</span> <span class='id identifier rubyid_client'>client</span><span class='period'>.</span><span class='id identifier rubyid_generate_rewrite'>generate_rewrite</span><span class='lparen'>(</span><span class='id identifier rubyid_original_sms'>original_sms</span><span class='comma'>,</span> <span class='id identifier rubyid_reason'>reason</span><span class='comma'>,</span> <span class='id identifier rubyid_confidence'>confidence</span><span class='rparen'>)</span>
+<span class='kw'>if</span> <span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Hash</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_puts'>puts</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Rewrite Error: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>error</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>elsif</span> <span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>String</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_puts'>puts</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Uncorrectable: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>else</span> <span class='comment'># Is a Hash with suggestions
+</span>  <span class='id identifier rubyid_puts'>puts</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Suggestions: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>general_fix_suggestions</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+  <span class='id identifier rubyid_puts'>puts</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Rewrite: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_rewrite_suggestion'>rewrite_suggestion</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>literal_rewrite</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></code></pre>
+    
+  </div>
+
+
+</div>
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="DEFAULT_MODEL_NAME-constant" class="">DEFAULT_MODEL_NAME =
+          <div class="docstring">
+  <div class="discussion">
+    
+<p>Default Gemini model to be used if not specified during initialization.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>gemini-1.5-flash-latest</span><span class='tstring_end'>&#39;</span></span></pre></dd>
+      
+        <dt id="BASE_URL-constant" class="">BASE_URL =
+          <div class="docstring">
+  <div class="discussion">
+    
+<p>Base URL for the Google Generative Language API.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>https://generativelanguage.googleapis.com</span><span class='tstring_end'>&#39;</span></span></pre></dd>
+      
+        <dt id="API_VERSION-constant" class="">API_VERSION =
+          <div class="docstring">
+  <div class="discussion">
+    
+<p>API version for the Generative Language API.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>v1beta</span><span class='tstring_end'>&#39;</span></span></pre></dd>
+      
+        <dt id="GENERATION_ENDPOINT_TEMPLATE-constant" class="">GENERATION_ENDPOINT_TEMPLATE =
+          <div class="docstring">
+  <div class="discussion">
+    
+<p>Template for the generateContent API endpoint, requires model name interpolation.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='const'><span class='object_link'><a href="#API_VERSION-constant" title="Google::GeminiClient::API_VERSION (constant)">API_VERSION</a></span></span><span class='embexpr_end'>}</span><span class='tstring_content'>/models/%{model}:generateContent</span><span class='tstring_end'>&quot;</span></span></pre></dd>
+      
+        <dt id="EXPECTED_RESPONSE_SCHEMA-constant" class="">EXPECTED_RESPONSE_SCHEMA =
+          <div class="docstring">
+  <div class="discussion">
+    
+<p>JSON schema definition expected for responses from ‘analyze_characteristic`. Used in `generationConfig.responseSchema` to enforce JSON output structure.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='lbrace'>{</span>
+  <span class='label'>type:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>OBJECT</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='label'>properties:</span> <span class='lbrace'>{</span>
+    <span class='label'>confidence_score:</span> <span class='lbrace'>{</span> <span class='label'>type:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>NUMBER</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span><span class='comma'>,</span>
+    <span class='label'>rationale:</span> <span class='lbrace'>{</span> <span class='label'>type:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>STRING</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+  <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='label'>required:</span> <span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>confidence_score</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>rationale</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span>
+<span class='rbrace'>}</span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+        <dt id="REWRITE_RESPONSE_SCHEMA-constant" class="">REWRITE_RESPONSE_SCHEMA =
+          <div class="docstring">
+  <div class="discussion">
+    
+<p>JSON schema definition expected for ‘correctable’ rewrite suggestions from ‘generate_rewrite`. Used in `generationConfig.responseSchema`.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='lbrace'>{</span>
+  <span class='label'>type:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>OBJECT</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='label'>properties:</span> <span class='lbrace'>{</span>
+    <span class='label'>general_fix_suggestions:</span> <span class='lbrace'>{</span> <span class='label'>type:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>STRING</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span><span class='comma'>,</span>
+    <span class='label'>literal_rewrite:</span> <span class='lbrace'>{</span> <span class='label'>type:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>STRING</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+  <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='label'>required:</span> <span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>general_fix_suggestions</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>literal_rewrite</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span>
+<span class='rbrace'>}</span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+  <h2>Instance Attribute Summary <small><a href="#" class="summary_toggle">collapse</a></small></h2>
+  <ul class="summary">
+    
+      <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#api_key-instance_method" title="#api_key (instance method)">#<strong>api_key</strong>  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+    
+      <span class="note title readonly">readonly</span>
+    
+    
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Returns the value of attribute api_key.</p>
+</div></span>
+  
+</li>
+
+    
+      <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#connection-instance_method" title="#connection (instance method)">#<strong>connection</strong>  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+    
+      <span class="note title readonly">readonly</span>
+    
+    
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Returns the value of attribute connection.</p>
+</div></span>
+  
+</li>
+
+    
+      <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#model_name-instance_method" title="#model_name (instance method)">#<strong>model_name</strong>  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+    
+      <span class="note title readonly">readonly</span>
+    
+    
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Returns the value of attribute model_name.</p>
+</div></span>
+  
+</li>
+
+    
+  </ul>
+
+
+
+
+  
+    <h2>
+      Instance Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#_build_rewrite_prompt-instance_method" title="#_build_rewrite_prompt (instance method)">#<strong>_build_rewrite_prompt</strong>(original_message, failure_reason, failure_confidence)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Constructs the prompt for the ‘generate_rewrite` method.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#_make_gemini_api_request-instance_method" title="#_make_gemini_api_request (instance method)">#<strong>_make_gemini_api_request</strong>(endpoint, request_body, method_name)  &#x21d2; Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Makes a POST request to the specified Gemini API endpoint and handles common errors.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#_parse_rewrite_llm_output-instance_method" title="#_parse_rewrite_llm_output (instance method)">#<strong>_parse_rewrite_llm_output</strong>(raw_llm_output_text, method_name)  &#x21d2; String, Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Parses the raw text output from the LLM for the rewrite generation task.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#analyze_characteristic-instance_method" title="#analyze_characteristic (instance method)">#<strong>analyze_characteristic</strong>(prompt_text)  &#x21d2; Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Generates content from the Gemini model for analyzing a specific characteristic, expecting a JSON response conforming to ‘EXPECTED_RESPONSE_SCHEMA`.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#extract_text_from_gemini_candidates-instance_method" title="#extract_text_from_gemini_candidates (instance method)">#<strong>extract_text_from_gemini_candidates</strong>(outer_response_body)  &#x21d2; String<sup>?</sup> </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Extracts the raw text string from the first candidate in a Gemini API response.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#generate_rewrite-instance_method" title="#generate_rewrite (instance method)">#<strong>generate_rewrite</strong>(original_message, failure_reason, failure_confidence)  &#x21d2; Hash, String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Attempts to generate rewrite suggestions for a non-compliant SMS message.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#handle_faraday_error-instance_method" title="#handle_faraday_error (instance method)">#<strong>handle_faraday_error</strong>(exception, method_name)  &#x21d2; Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Handles errors raised by Faraday during API communication for GeminiClient methods.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#initialize-instance_method" title="#initialize (instance method)">#<strong>initialize</strong>(api_key: , model_name: DEFAULT_MODEL_NAME)  &#x21d2; GeminiClient </a>
+    
+
+    
+  </span>
+  
+  
+    <span class="note title constructor">constructor</span>
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Initializes a new GeminiClient.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#is_json_response%3F-instance_method" title="#is_json_response? (instance method)">#<strong>is_json_response?</strong>(response_headers)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Helper to determine if response headers indicate a JSON content type.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="private ">
+  <span class="summary_signature">
+    
+      <a href="#process_gemini_response_content-instance_method" title="#process_gemini_response_content (instance method)">#<strong>process_gemini_response_content</strong>(outer_response_body)  &#x21d2; Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  <span class="note title private">private</span>
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+<p>Processes the raw response body from a Gemini generateContent call, specifically for ‘analyze_characteristic` where a JSON string is expected within the ’text’ part of the first candidate.</p>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+<div id="constructor_details" class="method_details_list">
+  <h2>Constructor Details</h2>
+  
+    <div class="method_details first">
+  <h3 class="signature first" id="initialize-instance_method">
+  
+    #<strong>initialize</strong>(api_key: , model_name: DEFAULT_MODEL_NAME)  &#x21d2; <tt><span class='object_link'><a href="" title="Google::GeminiClient (class)">GeminiClient</a></span></tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Initializes a new GeminiClient.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>api_key</span>
+      
+      
+        <span class='type'>(<tt>String</tt>, <tt>nil</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt></tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The Google API key. Defaults to ‘<a href="&#39;GOOGLE_API_KEY&#39;">ENV</a>`.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>model_name</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt>DEFAULT_MODEL_NAME</tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The name of the Gemini model to use (e.g., ‘gemini-1.5-flash-latest’). Defaults to ‘DEFAULT_MODEL_NAME`.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 93</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_initialize'>initialize</span><span class='lparen'>(</span><span class='label'>api_key:</span> <span class='const'>ENV</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>GOOGLE_API_KEY</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>model_name:</span> <span class='const'><span class='object_link'><a href="#DEFAULT_MODEL_NAME-constant" title="Google::GeminiClient::DEFAULT_MODEL_NAME (constant)">DEFAULT_MODEL_NAME</a></span></span><span class='rparen'>)</span>
+  <span class='ivar'>@api_key</span> <span class='op'>=</span> <span class='id identifier rubyid_api_key'>api_key</span>
+  <span class='ivar'>@model_name</span> <span class='op'>=</span> <span class='id identifier rubyid_model_name'>model_name</span>
+  <span class='kw'>if</span> <span class='ivar'>@api_key</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>||</span> <span class='ivar'>@api_key</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient initialized without a valid API key. API calls will fail without it.</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>end</span>
+
+  <span class='ivar'>@connection</span> <span class='op'>=</span> <span class='const'>Faraday</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='label'>url:</span> <span class='const'><span class='object_link'><a href="#BASE_URL-constant" title="Google::GeminiClient::BASE_URL (constant)">BASE_URL</a></span></span><span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_faraday'>faraday</span><span class='op'>|</span>
+    <span class='id identifier rubyid_faraday'>faraday</span><span class='period'>.</span><span class='id identifier rubyid_request'>request</span> <span class='symbol'>:json</span> <span class='comment'># Encode request body as JSON.
+</span>    <span class='comment'># Parse JSON responses; symbolize_names: false to keep string keys as returned by Google API.
+</span>    <span class='id identifier rubyid_faraday'>faraday</span><span class='period'>.</span><span class='id identifier rubyid_response'>response</span> <span class='symbol'>:json</span><span class='comma'>,</span> <span class='label'>content_type:</span> <span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\bjson$</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='label'>parser_options:</span> <span class='lbrace'>{</span> <span class='label'>symbolize_names:</span> <span class='kw'>false</span> <span class='rbrace'>}</span>
+    <span class='id identifier rubyid_faraday'>faraday</span><span class='period'>.</span><span class='id identifier rubyid_response'>response</span> <span class='symbol'>:raise_error</span> <span class='comment'># Raise exceptions on 4xx/5xx HTTP responses.
+</span>    <span class='id identifier rubyid_faraday'>faraday</span><span class='period'>.</span><span class='id identifier rubyid_adapter'>adapter</span> <span class='const'>Faraday</span><span class='period'>.</span><span class='id identifier rubyid_default_adapter'>default_adapter</span> <span class='comment'># Use the default HTTP adapter.
+</span>    <span class='comment'># Gemini calls can be longer, especially with complex prompts or schemas.
+</span>    <span class='id identifier rubyid_faraday'>faraday</span><span class='period'>.</span><span class='id identifier rubyid_options'>options</span><span class='period'>.</span><span class='id identifier rubyid_timeout'>timeout</span> <span class='op'>=</span> <span class='int'>60</span>      <span class='comment'># Overall request timeout in seconds.
+</span>    <span class='id identifier rubyid_faraday'>faraday</span><span class='period'>.</span><span class='id identifier rubyid_options'>options</span><span class='period'>.</span><span class='id identifier rubyid_open_timeout'>open_timeout</span> <span class='op'>=</span> <span class='int'>10</span> <span class='comment'># Connection opening timeout in seconds.
+</span>  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+  
+</div>
+
+  <div id="instance_attr_details" class="attr_details">
+    <h2>Instance Attribute Details</h2>
+    
+      
+      <span id=""></span>
+      <div class="method_details first">
+  <h3 class="signature first" id="api_key-instance_method">
+  
+    #<strong>api_key</strong>  &#x21d2; <tt>Object</tt>  <span class="extras">(readonly)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Returns the value of attribute api_key.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+86
+87
+88</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 86</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_api_key'>api_key</span>
+  <span class='ivar'>@api_key</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      
+      <span id=""></span>
+      <div class="method_details ">
+  <h3 class="signature " id="connection-instance_method">
+  
+    #<strong>connection</strong>  &#x21d2; <tt>Object</tt>  <span class="extras">(readonly)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Returns the value of attribute connection.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+86
+87
+88</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 86</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_connection'>connection</span>
+  <span class='ivar'>@connection</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      
+      <span id=""></span>
+      <div class="method_details ">
+  <h3 class="signature " id="model_name-instance_method">
+  
+    #<strong>model_name</strong>  &#x21d2; <tt>Object</tt>  <span class="extras">(readonly)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Returns the value of attribute model_name.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+86
+87
+88</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 86</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_model_name'>model_name</span>
+  <span class='ivar'>@model_name</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+
+  <div id="instance_method_details" class="method_details_list">
+    <h2>Instance Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="_build_rewrite_prompt-instance_method">
+  
+    #<strong>_build_rewrite_prompt</strong>(original_message, failure_reason, failure_confidence)  &#x21d2; <tt>String</tt>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Constructs the prompt for the ‘generate_rewrite` method.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>original_message</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>failure_reason</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>failure_confidence</span>
+      
+      
+        <span class='type'>(<tt>Float</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The constructed prompt text.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 205</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid__build_rewrite_prompt'>_build_rewrite_prompt</span><span class='lparen'>(</span><span class='id identifier rubyid_original_message'>original_message</span><span class='comma'>,</span> <span class='id identifier rubyid_failure_reason'>failure_reason</span><span class='comma'>,</span> <span class='id identifier rubyid_failure_confidence'>failure_confidence</span><span class='rparen'>)</span>
+  <span class='comment'># Using a HEREDOC for better readability of the multi-line prompt.
+</span>  <span class='heredoc_beg'>&lt;&lt;~PROMPT</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span>
+<span class='tstring_content'>    The following SMS message was analyzed and failed a policy check:
+</span><span class='tstring_content'>    Original Message: &quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_original_message'>original_message</span><span class='embexpr_end'>}</span><span class='tstring_content'>&quot;
+</span><span class='tstring_content'>    Reason for Failure: &quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_failure_reason'>failure_reason</span><span class='embexpr_end'>}</span><span class='tstring_content'>&quot;
+</span><span class='tstring_content'>    Confidence of Failure: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_failure_confidence'>failure_confidence</span><span class='period'>.</span><span class='id identifier rubyid_round'>round</span><span class='lparen'>(</span><span class='int'>3</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_content'>
+</span><span class='tstring_content'>
+</span><span class='tstring_content'>    Your task is to provide advice.
+</span><span class='tstring_content'>    1. First, determine if this message can be reasonably corrected to become compliant while retaining its original intent as much as possible.
+</span><span class='tstring_content'>    2. If you determine the message is fundamentally uncorrectable (e.g., due to promoting illegal activities, severe hate speech that cannot be salvaged), respond ONLY with the exact phrase:
+</span><span class='tstring_content'>       &quot;This message cannot be made compliant due to: [briefly explain why, e.g., its promotion of illegal content].&quot;
+</span><span class='tstring_content'>       Do NOT include any other text or JSON if it&#39;s uncorrectable.
+</span><span class='tstring_content'>    3. If the message IS correctable, provide a JSON object conforming to the schema: </span><span class='embexpr_beg'>#{</span><span class='const'><span class='object_link'><a href="#REWRITE_RESPONSE_SCHEMA-constant" title="Google::GeminiClient::REWRITE_RESPONSE_SCHEMA (constant)">REWRITE_RESPONSE_SCHEMA</a></span></span><span class='period'>.</span><span class='id identifier rubyid_to_json'>to_json</span><span class='embexpr_end'>}</span><span class='tstring_content'>.
+</span><span class='tstring_content'>       Do NOT include any text outside of the JSON object itself. The JSON should contain &#39;general_fix_suggestions&#39; (string) and &#39;literal_rewrite&#39; (string).
+</span><span class='heredoc_end'>  PROMPT
+</span><span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="_make_gemini_api_request-instance_method">
+  
+    #<strong>_make_gemini_api_request</strong>(endpoint, request_body, method_name)  &#x21d2; <tt>Hash</tt>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Makes a POST request to the specified Gemini API endpoint and handles common errors.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>endpoint</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The API endpoint path.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>request_body</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The body of the request.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>method_name</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The calling public method’s name (for logging and error details).</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The parsed JSON response body from the API on success (outer structure), or an error hash. An error hash will contain an ‘“error”` key.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 258</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid__make_gemini_api_request'>_make_gemini_api_request</span><span class='lparen'>(</span><span class='id identifier rubyid_endpoint'>endpoint</span><span class='comma'>,</span> <span class='id identifier rubyid_request_body'>request_body</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_response'>response</span> <span class='op'>=</span> <span class='ivar'>@connection</span><span class='period'>.</span><span class='id identifier rubyid_post'>post</span><span class='lparen'>(</span><span class='id identifier rubyid_endpoint'>endpoint</span><span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_req'>req</span><span class='op'>|</span>
+    <span class='id identifier rubyid_req'>req</span><span class='period'>.</span><span class='id identifier rubyid_params'>params</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>key</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='ivar'>@api_key</span>
+    <span class='id identifier rubyid_req'>req</span><span class='period'>.</span><span class='id identifier rubyid_headers'>headers</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>Content-Type</span><span class='tstring_end'>&#39;</span></span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>application/json; charset=utf-8</span><span class='tstring_end'>&#39;</span></span> <span class='comment'># Ensure UTF-8
+</span>    <span class='id identifier rubyid_req'>req</span><span class='period'>.</span><span class='id identifier rubyid_body'>body</span> <span class='op'>=</span> <span class='id identifier rubyid_request_body'>request_body</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_response'>response</span><span class='period'>.</span><span class='id identifier rubyid_body'>body</span> <span class='comment'># Faraday&#39;s :json middleware parses this outer response.
+</span><span class='kw'>rescue</span> <span class='const'>Faraday</span><span class='op'>::</span><span class='const'>ClientError</span><span class='comma'>,</span> <span class='const'>Faraday</span><span class='op'>::</span><span class='const'>ServerError</span><span class='comma'>,</span> <span class='const'>Faraday</span><span class='op'>::</span><span class='const'>TimeoutError</span><span class='comma'>,</span> <span class='const'>Faraday</span><span class='op'>::</span><span class='const'>ConnectionFailed</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_handle_faraday_error'>handle_faraday_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>JSON</span><span class='op'>::</span><span class='const'>ParserError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span> <span class='comment'># Error parsing the *outer* API response, not the nested JSON content.
+</span>  <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>) Outer JSON Parsing Error: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Body: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_response'>response</span><span class='op'>&amp;.</span><span class='id identifier rubyid_body'>body</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+  <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Gemini API outer response was not valid JSON (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>)</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>) Unexpected Error during API call: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_class'>class</span><span class='embexpr_end'>}</span><span class='tstring_content'> - </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_backtrace'>backtrace</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='lparen'>(</span><span class='int'>5</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+  <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Unexpected error in GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_class'>class</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="_parse_rewrite_llm_output-instance_method">
+  
+    #<strong>_parse_rewrite_llm_output</strong>(raw_llm_output_text, method_name)  &#x21d2; <tt>String</tt>, <tt>Hash</tt>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Parses the raw text output from the LLM for the rewrite generation task. The output can be a string indicating uncorrectability or a JSON string with suggestions.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>raw_llm_output_text</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The text extracted from the LLM’s response.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>method_name</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>Calling method context for logging.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>, <tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The uncorrectable message string, a hash of suggestions, or an error hash.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+229
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 229</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid__parse_rewrite_llm_output'>_parse_rewrite_llm_output</span><span class='lparen'>(</span><span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+  <span class='comment'># Check for the specific &quot;uncorrectable&quot; message first.
+</span>  <span class='kw'>if</span> <span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='period'>.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>This message cannot be made compliant due to:</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span>
+  <span class='kw'>end</span>
+
+  <span class='comment'># If not the &quot;uncorrectable&quot; string, attempt to parse as JSON.
+</span>  <span class='kw'>begin</span>
+    <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span> <span class='op'>=</span> <span class='const'>JSON</span><span class='period'>.</span><span class='id identifier rubyid_parse'>parse</span><span class='lparen'>(</span><span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='rparen'>)</span>
+    <span class='comment'># Validate against the expected structure for a correctable rewrite.
+</span>    <span class='kw'>if</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Hash</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>general_fix_suggestions</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>literal_rewrite</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+      <span class='kw'>return</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span>
+    <span class='kw'>else</span>
+      <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Parsed JSON but missing rewrite keys. Output: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+      <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM rewrite response JSON missing required keys</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>details</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+    <span class='kw'>end</span>
+  <span class='kw'>rescue</span> <span class='const'>JSON</span><span class='op'>::</span><span class='const'>ParserError</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Output was not the &#39;uncorrectable&#39; string nor valid JSON. Output: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM rewrite output was not in the expected format (string or valid JSON)</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>details</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="analyze_characteristic-instance_method">
+  
+    #<strong>analyze_characteristic</strong>(prompt_text)  &#x21d2; <tt>Hash</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Generates content from the Gemini model for analyzing a specific characteristic, expecting a JSON response conforming to ‘EXPECTED_RESPONSE_SCHEMA`.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>prompt_text</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The prompt to send to the LLM.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><ul><li>
+<p>On success: A hash matching ‘EXPECTED_RESPONSE_SCHEMA` (e.g., `{ “confidence_score”: Float, “rationale”: String }`).</p>
+</li><li>
+<p>On failure: A hash with an ‘“error”` key and potentially other keys like `“details”`, `“block_reason”`, or `“safety_ratings”`.</p>
+</li></ul>
+</div>
+      
+    </li>
+  
+</ul>
+
+  <p class="tag_title">See Also:</p>
+  <ul class="see">
+    
+      <li><span class='object_link'><a href="#process_gemini_response_content-instance_method" title="Google::GeminiClient#process_gemini_response_content (method)">for details on how the LLM's response is parsed.</a></span></li>
+    
+      <li><span class='object_link'><a href="#_make_gemini_api_request-instance_method" title="Google::GeminiClient#_make_gemini_api_request (method)">for the underlying API call.</a></span></li>
+    
+  </ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 122</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_analyze_characteristic'>analyze_characteristic</span><span class='lparen'>(</span><span class='id identifier rubyid_prompt_text'>prompt_text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_method_name'>method_name</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>analyze_characteristic</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>if</span> <span class='ivar'>@api_key</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>||</span> <span class='ivar'>@api_key</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): API key is missing.</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>API key missing for GeminiClient</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_generation_endpoint'>generation_endpoint</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="#GENERATION_ENDPOINT_TEMPLATE-constant" title="Google::GeminiClient::GENERATION_ENDPOINT_TEMPLATE (constant)">GENERATION_ENDPOINT_TEMPLATE</a></span></span> <span class='op'>%</span> <span class='lbrace'>{</span> <span class='label'>model:</span> <span class='ivar'>@model_name</span> <span class='rbrace'>}</span>
+  <span class='comment'># generationConfig with responseMimeType and responseSchema is crucial for forcing JSON output.
+</span>  <span class='id identifier rubyid_request_body'>request_body</span> <span class='op'>=</span> <span class='lbrace'>{</span>
+    <span class='label'>contents:</span> <span class='lbracket'>[</span><span class='lbrace'>{</span> <span class='label'>parts:</span> <span class='lbracket'>[</span><span class='lbrace'>{</span> <span class='label'>text:</span> <span class='id identifier rubyid_prompt_text'>prompt_text</span> <span class='rbrace'>}</span><span class='rbracket'>]</span> <span class='rbrace'>}</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>generationConfig:</span> <span class='lbrace'>{</span>
+      <span class='label'>responseMimeType:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>application/json</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+      <span class='label'>responseSchema:</span> <span class='const'><span class='object_link'><a href="#EXPECTED_RESPONSE_SCHEMA-constant" title="Google::GeminiClient::EXPECTED_RESPONSE_SCHEMA (constant)">EXPECTED_RESPONSE_SCHEMA</a></span></span>
+    <span class='rbrace'>}</span>
+  <span class='rbrace'>}</span>
+
+  <span class='id identifier rubyid_outer_response_body'>outer_response_body</span> <span class='op'>=</span> <span class='id identifier rubyid__make_gemini_api_request'>_make_gemini_api_request</span><span class='lparen'>(</span><span class='id identifier rubyid_generation_endpoint'>generation_endpoint</span><span class='comma'>,</span> <span class='id identifier rubyid_request_body'>request_body</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span> <span class='kw'>if</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='comment'># Error from API call itself
+</span>
+  <span class='comment'># Process the content within the successful API response
+</span>  <span class='id identifier rubyid_process_gemini_response_content'>process_gemini_response_content</span><span class='lparen'>(</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="extract_text_from_gemini_candidates-instance_method">
+  
+    #<strong>extract_text_from_gemini_candidates</strong>(outer_response_body)  &#x21d2; <tt>String</tt><sup>?</sup>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Extracts the raw text string from the first candidate in a Gemini API response. This text is intended for ‘generate_rewrite`, where it might be a JSON string or a plain text “uncorrectable” message. Handles cases where the prompt might be blocked, returning a specific “uncorrectable” string.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>outer_response_body</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The full parsed JSON response from the Gemini API.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The extracted text content, a specific string if blocked by API, or nil if text not found.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361
+362</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 339</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_extract_text_from_gemini_candidates'>extract_text_from_gemini_candidates</span><span class='lparen'>(</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_method_context'>method_context</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>extract_text_from_gemini_candidates</span><span class='tstring_end'>&quot;</span></span> <span class='comment'># For logging
+</span>  <span class='id identifier rubyid_candidates'>candidates</span> <span class='op'>=</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>candidates</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Array</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+    <span class='id identifier rubyid_first_candidate_content'>first_candidate_content</span> <span class='op'>=</span> <span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>content</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span> <span class='op'>=</span> <span class='id identifier rubyid_first_candidate_content'>first_candidate_content</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>parts</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='kw'>if</span> <span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Array</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+      <span class='comment'># This text part could be a JSON string (for a correctable rewrite)
+</span>      <span class='comment'># or a plain string (if LLM directly states it&#39;s uncorrectable, though prompt guides it to use JSON or specific phrase).
+</span>      <span class='kw'>return</span> <span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>text</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='kw'>end</span>
+  <span class='comment'># If the prompt was blocked, treat it as uncorrectable for the rewrite flow.
+</span>  <span class='kw'>elsif</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>promptFeedback</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>blockReason</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_present?'>present?</span>
+    <span class='id identifier rubyid_block_reason'>block_reason</span> <span class='op'>=</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>promptFeedback</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>blockReason</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_safety_ratings'>safety_ratings</span> <span class='op'>=</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>promptFeedback</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>safetyRatings</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='comment'># For logging context
+</span>    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Prompt blocked by API. Reason: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_block_reason'>block_reason</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Ratings: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_safety_ratings'>safety_ratings</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+    <span class='comment'># Return a string that aligns with the &quot;uncorrectable&quot; message format expected by generate_rewrite.
+</span>    <span class='kw'>return</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>This message cannot be made compliant due to: Content generation blocked by API safety filters (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_block_reason'>block_reason</span><span class='embexpr_end'>}</span><span class='tstring_content'>).</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>end</span>
+
+  <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Could not extract text from candidates, and no prompt block reason found. Body: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>1000</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>nil</span> <span class='comment'># Text not found
+</span><span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="generate_rewrite-instance_method">
+  
+    #<strong>generate_rewrite</strong>(original_message, failure_reason, failure_confidence)  &#x21d2; <tt>Hash</tt>, <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Attempts to generate rewrite suggestions for a non-compliant SMS message.</p>
+
+<p>The method instructs the LLM to either:</p>
+<ol><li>
+<p>State the message is uncorrectable (specific string format).</p>
+</li><li>
+<p>Provide a JSON object with suggestions, conforming to ‘REWRITE_RESPONSE_SCHEMA`.</p>
+</li></ol>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>original_message</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The original SMS message content.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>failure_reason</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The reason the message failed policy checks.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>failure_confidence</span>
+      
+      
+        <span class='type'>(<tt>Float</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The confidence score of the policy failure.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>, <tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><ul><li>
+<p>If correctable: A Hash matching ‘REWRITE_RESPONSE_SCHEMA` (e.g., `{ “general_fix_suggestions”: String, “literal_rewrite”: String }`).</p>
+</li><li>
+<p>If uncorrectable by LLM’s judgment: A String starting with “This message cannot be made compliant due to:”.</p>
+</li><li>
+<p>On client/API error: A Hash with an ‘“error”` key and potentially `“details”`.</p>
+</li></ul>
+</div>
+      
+    </li>
+  
+</ul>
+
+  <p class="tag_title">See Also:</p>
+  <ul class="see">
+    
+      <li><span class='object_link'><a href="#_build_rewrite_prompt-instance_method" title="Google::GeminiClient#_build_rewrite_prompt (method)">For prompt construction.</a></span></li>
+    
+      <li><span class='object_link'><a href="#extract_text_from_gemini_candidates-instance_method" title="Google::GeminiClient#extract_text_from_gemini_candidates (method)">For initial processing of LLM output.</a></span></li>
+    
+      <li><span class='object_link'><a href="#_parse_rewrite_llm_output-instance_method" title="Google::GeminiClient#_parse_rewrite_llm_output (method)">For interpreting the extracted text.</a></span></li>
+    
+      <li><span class='object_link'><a href="#_make_gemini_api_request-instance_method" title="Google::GeminiClient#_make_gemini_api_request (method)">for the underlying API call.</a></span></li>
+    
+  </ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 165</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_generate_rewrite'>generate_rewrite</span><span class='lparen'>(</span><span class='id identifier rubyid_original_message'>original_message</span><span class='comma'>,</span> <span class='id identifier rubyid_failure_reason'>failure_reason</span><span class='comma'>,</span> <span class='id identifier rubyid_failure_confidence'>failure_confidence</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_method_name'>method_name</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>generate_rewrite</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>if</span> <span class='ivar'>@api_key</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>||</span> <span class='ivar'>@api_key</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): API key is missing.</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>API key missing for GeminiClient rewrite</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_prompt_text'>prompt_text</span> <span class='op'>=</span> <span class='id identifier rubyid__build_rewrite_prompt'>_build_rewrite_prompt</span><span class='lparen'>(</span><span class='id identifier rubyid_original_message'>original_message</span><span class='comma'>,</span> <span class='id identifier rubyid_failure_reason'>failure_reason</span><span class='comma'>,</span> <span class='id identifier rubyid_failure_confidence'>failure_confidence</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_generation_endpoint'>generation_endpoint</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="#GENERATION_ENDPOINT_TEMPLATE-constant" title="Google::GeminiClient::GENERATION_ENDPOINT_TEMPLATE (constant)">GENERATION_ENDPOINT_TEMPLATE</a></span></span> <span class='op'>%</span> <span class='lbrace'>{</span> <span class='label'>model:</span> <span class='ivar'>@model_name</span> <span class='rbrace'>}</span>
+  <span class='comment'># The REWRITE_RESPONSE_SCHEMA is used to guide the LLM if it decides the message is correctable.
+</span>  <span class='comment'># The LLM is also instructed to return a plain string if uncorrectable.
+</span>  <span class='id identifier rubyid_request_body'>request_body</span> <span class='op'>=</span> <span class='lbrace'>{</span>
+    <span class='label'>contents:</span> <span class='lbracket'>[</span><span class='lbrace'>{</span> <span class='label'>parts:</span> <span class='lbracket'>[</span><span class='lbrace'>{</span> <span class='label'>text:</span> <span class='id identifier rubyid_prompt_text'>prompt_text</span> <span class='rbrace'>}</span><span class='rbracket'>]</span> <span class='rbrace'>}</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>generationConfig:</span> <span class='lbrace'>{</span>
+      <span class='label'>responseMimeType:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>application/json</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='comment'># Expect JSON if correctable, LLM might override with text.
+</span>      <span class='label'>responseSchema:</span> <span class='const'><span class='object_link'><a href="#REWRITE_RESPONSE_SCHEMA-constant" title="Google::GeminiClient::REWRITE_RESPONSE_SCHEMA (constant)">REWRITE_RESPONSE_SCHEMA</a></span></span>
+    <span class='rbrace'>}</span>
+  <span class='rbrace'>}</span>
+
+  <span class='id identifier rubyid_outer_response_body'>outer_response_body</span> <span class='op'>=</span> <span class='id identifier rubyid__make_gemini_api_request'>_make_gemini_api_request</span><span class='lparen'>(</span><span class='id identifier rubyid_generation_endpoint'>generation_endpoint</span><span class='comma'>,</span> <span class='id identifier rubyid_request_body'>request_body</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span> <span class='kw'>if</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='comment'># Error from API call itself
+</span>
+  <span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span> <span class='op'>=</span> <span class='id identifier rubyid_extract_text_from_gemini_candidates'>extract_text_from_gemini_candidates</span><span class='lparen'>(</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='rparen'>)</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): No text found in Gemini response. Body: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM response for rewrite missing text content</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>details</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='op'>&amp;.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='op'>&amp;.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid__parse_rewrite_llm_output'>_parse_rewrite_llm_output</span><span class='lparen'>(</span><span class='id identifier rubyid_raw_llm_output_text'>raw_llm_output_text</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="handle_faraday_error-instance_method">
+  
+    #<strong>handle_faraday_error</strong>(exception, method_name)  &#x21d2; <tt>Hash</tt>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Handles errors raised by Faraday during API communication for GeminiClient methods. Logs the error and constructs a standardized error hash.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>exception</span>
+      
+      
+        <span class='type'>(<tt>Faraday::Error</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The exception object raised by Faraday.</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>method_name</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The name of the public method (e.g., “analyze_characteristic”).</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>An error hash in the format ‘{ “error” =&gt; String }`.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400
+401
+402
+403
+404
+405
+406</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 371</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_handle_faraday_error'>handle_faraday_error</span><span class='lparen'>(</span><span class='id identifier rubyid_exception'>exception</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_error_type_for_log'>error_type_for_log</span> <span class='op'>=</span> <span class='id identifier rubyid_exception'>exception</span><span class='period'>.</span><span class='id identifier rubyid_class'>class</span><span class='period'>.</span><span class='id identifier rubyid_name'>name</span>
+  <span class='id identifier rubyid_status_code'>status_code</span> <span class='op'>=</span> <span class='id identifier rubyid_exception'>exception</span><span class='period'>.</span><span class='id identifier rubyid_response'>response</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='symbol'>:status</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_response_headers'>response_headers</span> <span class='op'>=</span> <span class='id identifier rubyid_exception'>exception</span><span class='period'>.</span><span class='id identifier rubyid_response'>response</span><span class='op'>&amp;.</span><span class='op'>[]</span><span class='lparen'>(</span><span class='symbol'>:headers</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_raw_error_body'>raw_error_body</span> <span class='op'>=</span> <span class='id identifier rubyid_exception'>exception</span><span class='period'>.</span><span class='id identifier rubyid_response'>response</span><span class='op'>&amp;.</span><span class='op'>[]</span><span class='lparen'>(</span><span class='symbol'>:body</span><span class='rparen'>)</span> <span class='comment'># Could be string or pre-parsed hash by Faraday
+</span>  <span class='id identifier rubyid_parsed_json_error_message'>parsed_json_error_message</span> <span class='op'>=</span> <span class='kw'>nil</span>
+
+  <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>) API Communication Error: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_error_type_for_log'>error_type_for_log</span><span class='embexpr_end'>}</span><span class='tstring_content'> - </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_exception'>exception</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='embexpr_end'>}</span><span class='tstring_content'> (Status: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_status_code'>status_code</span><span class='embexpr_end'>}</span><span class='tstring_content'>)</span><span class='tstring_end'>&quot;</span></span>
+
+  <span class='comment'># Attempt to extract a specific error message from the API&#39;s JSON response body.
+</span>  <span class='kw'>if</span> <span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>String</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_is_json_response?'>is_json_response?</span><span class='lparen'>(</span><span class='id identifier rubyid_response_headers'>response_headers</span><span class='rparen'>)</span>
+    <span class='kw'>begin</span>
+      <span class='id identifier rubyid_parsed_json_body'>parsed_json_body</span> <span class='op'>=</span> <span class='const'>JSON</span><span class='period'>.</span><span class='id identifier rubyid_parse'>parse</span><span class='lparen'>(</span><span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_parsed_json_error_message'>parsed_json_error_message</span> <span class='op'>=</span> <span class='id identifier rubyid_parsed_json_body'>parsed_json_body</span><span class='period'>.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>message</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='kw'>if</span> <span class='id identifier rubyid_parsed_json_body'>parsed_json_body</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Hash</span><span class='rparen'>)</span>
+    <span class='kw'>rescue</span> <span class='const'>JSON</span><span class='op'>::</span><span class='const'>ParserError</span>
+      <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>) Failed to parse supposed JSON error body: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>200</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>end</span>
+  <span class='kw'>elsif</span> <span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Hash</span><span class='rparen'>)</span> <span class='comment'># Faraday might have already parsed it
+</span>    <span class='id identifier rubyid_parsed_json_error_message'>parsed_json_error_message</span> <span class='op'>=</span> <span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>message</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_returned_api_error_message'>returned_api_error_message</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_parsed_json_error_message'>parsed_json_error_message</span><span class='period'>.</span><span class='id identifier rubyid_present?'>present?</span>
+                                 <span class='id identifier rubyid_parsed_json_error_message'>parsed_json_error_message</span>
+                               <span class='kw'>elsif</span> <span class='id identifier rubyid_status_code'>status_code</span>
+                                 <span class='kw'>if</span> <span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>String</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_is_json_response?'>is_json_response?</span><span class='lparen'>(</span><span class='id identifier rubyid_response_headers'>response_headers</span><span class='rparen'>)</span>
+                                   <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Gemini API Error (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>, Status: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_status_code'>status_code</span><span class='embexpr_end'>}</span><span class='tstring_content'>): </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>150</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+                                 <span class='kw'>else</span>
+                                   <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Gemini API Error (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>, Status: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_status_code'>status_code</span><span class='embexpr_end'>}</span><span class='tstring_content'>)</span><span class='tstring_end'>&quot;</span></span>
+                                 <span class='kw'>end</span>
+                               <span class='kw'>else</span>
+                                 <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Gemini Network/Timeout Error (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>): </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_exception'>exception</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>100</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+                               <span class='kw'>end</span>
+
+  <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_name'>method_name</span><span class='embexpr_end'>}</span><span class='tstring_content'>) Processed Error for return: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_returned_api_error_message'>returned_api_error_message</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Original Status: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_status_code'>status_code</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Response Body (truncated): </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_raw_error_body'>raw_error_body</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+  <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_returned_api_error_message'>returned_api_error_message</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="is_json_response?-instance_method">
+  
+    #<strong>is_json_response?</strong>(response_headers)  &#x21d2; <tt>Boolean</tt>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Helper to determine if response headers indicate a JSON content type.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>response_headers</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The headers from the Faraday response.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>True if content type appears to be JSON, false otherwise.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+412
+413
+414</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 412</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_is_json_response?'>is_json_response?</span><span class='lparen'>(</span><span class='id identifier rubyid_response_headers'>response_headers</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_response_headers'>response_headers</span><span class='op'>&amp;.</span><span class='op'>[]</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>content-type</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span><span class='op'>&amp;.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>application/json</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span> <span class='op'>||</span> <span class='kw'>false</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="process_gemini_response_content-instance_method">
+  
+    #<strong>process_gemini_response_content</strong>(outer_response_body)  &#x21d2; <tt>Hash</tt>  <span class="extras">(private)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+<p>Processes the raw response body from a Gemini generateContent call, specifically for ‘analyze_characteristic` where a JSON string is expected within the ’text’ part of the first candidate.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>outer_response_body</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The full parsed JSON response from the Gemini API. This is the direct output from ‘_make_gemini_api_request` if it was successful.</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'>
+<p>The parsed inner JSON content if successful, or an error hash. Success example: ‘{ “confidence_score”: Float, “rationale”: String }` Error example: `{ “error”: String, “details”: …, “block_reason”: …, “safety_ratings”: … }`</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+285
+286
+287
+288
+289
+290
+291
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324
+325
+326
+327
+328
+329</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'app/clients/google/gemini_client.rb', line 285</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_process_gemini_response_content'>process_gemini_response_content</span><span class='lparen'>(</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_method_context'>method_context</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>process_gemini_response_content</span><span class='tstring_end'>&quot;</span></span> <span class='comment'># For logging
+</span>  <span class='id identifier rubyid_candidates'>candidates</span> <span class='op'>=</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>candidates</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Array</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+    <span class='id identifier rubyid_first_candidate_content'>first_candidate_content</span> <span class='op'>=</span> <span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>content</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span> <span class='op'>=</span> <span class='id identifier rubyid_first_candidate_content'>first_candidate_content</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>parts</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+    <span class='kw'>if</span> <span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Array</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+      <span class='id identifier rubyid_json_text_part'>json_text_part</span> <span class='op'>=</span> <span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>text</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+      <span class='kw'>if</span> <span class='id identifier rubyid_json_text_part'>json_text_part</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>String</span><span class='rparen'>)</span>
+        <span class='kw'>begin</span>
+          <span class='comment'># The &#39;text&#39; part itself should be a JSON string here due to responseSchema.
+</span>          <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span> <span class='op'>=</span> <span class='const'>JSON</span><span class='period'>.</span><span class='id identifier rubyid_parse'>parse</span><span class='lparen'>(</span><span class='id identifier rubyid_json_text_part'>json_text_part</span><span class='rparen'>)</span>
+          <span class='comment'># Validate against the expected schema keys.
+</span>          <span class='kw'>if</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Hash</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>confidence_score</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>rationale</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+            <span class='kw'>return</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span>
+          <span class='kw'>else</span>
+            <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Parsed JSON from &#39;text&#39; missing required keys. Content: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+            <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM response JSON missing required keys</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>details</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_parsed_json_content'>parsed_json_content</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+          <span class='kw'>end</span>
+        <span class='kw'>rescue</span> <span class='const'>JSON</span><span class='op'>::</span><span class='const'>ParserError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+          <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Failed to parse JSON from &#39;text&#39; part: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Content: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_json_text_part'>json_text_part</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+          <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM response content was not valid JSON in &#39;text&#39; part</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>details</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_json_text_part'>json_text_part</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+        <span class='kw'>end</span>
+      <span class='kw'>else</span>
+        <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Expected &#39;text&#39; part in LLM response to be a String, got </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_json_text_part'>json_text_part</span><span class='period'>.</span><span class='id identifier rubyid_class'>class</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Parts: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_first_candidate_parts'>first_candidate_parts</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+        <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM response &#39;text&#39; part was not a string</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+      <span class='kw'>end</span>
+    <span class='kw'>else</span>
+      <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): &#39;parts&#39; array in LLM response is missing/empty or not an array. Candidate: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_candidates'>candidates</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>500</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+      <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM response &#39;parts&#39; array missing, empty, or invalid</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+    <span class='kw'>end</span>
+  <span class='comment'># Handle cases where the prompt was blocked by safety filters.
+</span>  <span class='kw'>elsif</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='op'>&amp;.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>promptFeedback</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>blockReason</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_present?'>present?</span>
+    <span class='id identifier rubyid_block_reason'>block_reason</span> <span class='op'>=</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>promptFeedback</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>blockReason</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_safety_ratings'>safety_ratings</span> <span class='op'>=</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_dig'>dig</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>promptFeedback</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>safetyRatings</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Prompt blocked by API. Reason: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_block_reason'>block_reason</span><span class='embexpr_end'>}</span><span class='tstring_content'>. Ratings: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_safety_ratings'>safety_ratings</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM prompt blocked by API safety filters</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>block_reason</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_block_reason'>block_reason</span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>safety_ratings</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_safety_ratings'>safety_ratings</span> <span class='rbrace'>}</span>
+  <span class='kw'>else</span>
+    <span class='const'>Rails</span><span class='period'>.</span><span class='id identifier rubyid_logger'>logger</span><span class='period'>.</span><span class='id identifier rubyid_error'>error</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Google::GeminiClient (</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_method_context'>method_context</span><span class='embexpr_end'>}</span><span class='tstring_content'>): Unexpected response structure. No &#39;candidates&#39; or actionable &#39;promptFeedback&#39;. Body: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='period'>.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>1000</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+    <span class='kw'>return</span> <span class='lbrace'>{</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>error</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>LLM response structure was unexpected (no candidates or actionable feedback)</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>details</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_outer_response_body'>outer_response_body</span><span class='op'>&amp;.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='op'>&amp;.</span><span class='id identifier rubyid_truncate'>truncate</span><span class='lparen'>(</span><span class='int'>1000</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sun May 11 17:52:35 2025 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.37 (ruby-3.4.3).
+</div>
+
+    </div>
+  </body>
+</html>

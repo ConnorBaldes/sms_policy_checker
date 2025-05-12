@@ -9,12 +9,7 @@ require 'rspec/rails'
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
-# run as spec files by default. This line ensures that files in spec/support are
-# loaded first:
-
-Dir[Rails.root.join('spec', 'support', '**', '*.rb')].sort.each { |f| require f }
-
-# This means that files in spec/support that end
+# run as spec files by default. This means that files in spec/support that end
 # in _spec.rb will both be required and run as specs, causing the specs to be
 # run twice. It is recommended that you do not name files matching this glob to
 # end with _spec.rb. You can configure this pattern with the --pattern
@@ -35,7 +30,6 @@ rescue ActiveRecord::PendingMigrationError => e
   abort e.to_s.strip
 end
 RSpec.configure do |config|
-  config.include FileFixtures # This makes the module's methods available in all spec files
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   config.fixture_paths = [
     Rails.root.join('spec/fixtures')

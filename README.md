@@ -1,7 +1,5 @@
 # SMS Message Policy Checker: Design and Implementation Details
 
-
-
 # Trial Project: SMS Message Policy Checker
 
 ## Project Directory
@@ -17,7 +15,6 @@ sms_policy_checker_app/
 │       └── google/
 │           ├── gemini_client.rb
 │           ├── safe_browse_client.rb
-│           ├── perspective_client.rb
 │           └── nl_client.rb
 ├── config/
 │   ├── initializers/
@@ -25,6 +22,11 @@ sms_policy_checker_app/
 │   ├── sms_policy_checker_rules.yml       # Layer 1 rules
 │   ├── sms_policy_checker_llm_config.yml  # Layer 2 LLM characteristics and prompts
 │   └── sms_policy_checker_thresholds.yml  # Various decision thresholds
+├── spec/
+│   ├── services/
+│   │   └── sms_policy_checker_service_spec.rb # RSpec tests for the service
+│   └── support/
+│       └── file_fixtures.rb
 └── README.md
 ```
 
@@ -638,3 +640,5 @@ The service logic for determining relevancy (Section 5.5.1.a) is designed to be 
 
 * **Strategy to Avoid Duplicate LLM Calls (Caching):** The initial requirement to implement a caching strategy (e.g., using Redis) for LLM API calls and/or final service results has been **explicitly removed** from the project scope.
     * **Reason:** Implementing a robust, granular, and effective caching mechanism for the complex and varied inputs to the LLM (especially for per-characteristic analysis) was deemed to add significant development complexity and testing overhead, which was not feasible within the project's timeframe and current priorities. The focus was shifted to ensuring the core filtering logic, fallback mechanisms, and LLM integration were sound. This means that LLM calls will be made as needed for each message analysis, even if similar content has been processed previously.
+
+

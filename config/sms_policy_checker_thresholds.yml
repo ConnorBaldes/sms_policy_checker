@@ -15,16 +15,22 @@ FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK: 0.70 # Can be same or different from above
 # it's a critical failure.
 # (README Section 6.3.a)
 CRITICAL_FAILURE_THRESHOLDS:
-  "PhishingAndDeceptiveURLs": 0.95 # Note: Name matches 'name' in llm_config.yml
-  "HatefulContent": 0.95
-  "SHAFT_Sex_AdultContent": 0.98
-  # "Illegal Content" - This needs a specific characteristic name from llm_config.yml
-  # Example: If you have a characteristic named "IllegalActivitiesPromotion"
-  "IllegalActivitiesPromotion": 0.98 # Placeholder, ensure this matches a defined LLM characteristic name
-  "SHAFT_Firearms_IllegalPromotion": 0.95
-  "SHAFT_Sex_AdultContent": 0.98 # Assuming this maps to the explicit/illegal aspect
-  "FraudulentOrMaliciousContent": 0.95
-
-# Placeholder for any other thresholds if needed
-# OTHER_THRESHOLDS:
-#   some_other_value: 0.5
+  # "MisleadingSenderIdentity": 0.95
+  # "FalseOrInaccurateContent": 0.95
+  # "HatefulContent": 0.95
+  # "ServiceInterferenceOrFilterEvasion": 0.95
+  # "SHAFT_Sex_AdultContent": 0.98
+  # "SHAFT_Alcohol_ProhibitedPromotion": 0.95
+  # "SHAFT_Firearms_IllegalPromotion": 0.95
+  # "SHAFT_Tobacco_ProhibitedPromotion": 0.95
+  # "ProhibitedSubstances_CannabisCBDKratom": 0.95
+  # "RegulatedPharmaceuticals_PrescriptionOffers": 0.95
+  # "FraudulentOrMaliciousContent": 0.95
+  # "HighRiskFinancialServices": 0.95
+  # "ProhibitedAffiliateMarketing": 0.95
+  # "RestrictedDebtCollection": 0.95
+  # "GetRichQuickSchemes": 0.95
+  # "GamblingPromotions": 0.95
+  # "PhishingAndDeceptiveURLs": 0.95
+  # "ProhibitedPublicURLShorteners": 0.95
+  "AdvancedContentEvasionTactics": 0.95

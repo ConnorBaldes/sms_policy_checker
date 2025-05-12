@@ -1,133 +1,155 @@
+# config/initializers/sms_policy_checker_config.rb
 # frozen_string_literal: true
 
-# Loads configurations for the SmsPolicyCheckerService at application boot.
-begin
-  # Ensure RuleLoader is loaded first as it's used to define LAYER1_RULES
-  require_dependency Rails.root.join("app/helpers/sms_policy/rule_loader.rb").to_s
-  Rails.logger.info "[SmsPolicyCheckerConfig] Explicitly loaded SmsPolicy::RuleLoader."
-rescue LoadError => e
-  Rails.logger.error "[SmsPolicyCheckerConfig] Failed to explicitly load SmsPolicy::RuleLoader: #{e.message}. Layer 1 rules may not load correctly."
-end
+# This initializer loads configurations for the SmsPolicyCheckerService at application boot.
+# It aims to fail fast if critical configurations are missing or malformed.
 
 begin
-  require_dependency Rails.root.join("app/services/sms_policy_checker_service.rb").to_s
-  Rails.logger.info "[SmsPolicyCheckerConfig] Explicitly loaded SmsPolicyCheckerService."
-rescue LoadError => e
-  Rails.logger.error "[SmsPolicyCheckerConfig] Failed to explicitly load SmsPolicyCheckerService: #{e.message}. Configuration constants might not be set on it."
-end
+  # --- 1. Load Essential Dependencies ---
+  # These are critical. If they don't load, the application cannot proceed.
+  begin
+    require_dependency Rails.root.join("app/helpers/sms_policy/rule_loader.rb").to_s
+    Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded SmsPolicy::RuleLoader."
+  rescue LoadError => e
+    error_message = "[SmsPolicyCheckerConfig CRITICAL] Failed to load SmsPolicy::RuleLoader: #{e.message}. Layer 1 rules cannot be processed."
+    Rails.logger.fatal error_message
+    raise LoadError, error_message # Halt boot
+  end
 
-# Define a module to namespace configuration loading logic, though not strictly necessary
-# for a simple initializer, it can help organize if it grows.
-module SmsPolicyCheckerApp
-  module ConfigLoader
-    CONFIG_BASE_PATH = Rails.root.join("config")
+  begin
+    require_dependency Rails.root.join("app/services/sms_policy_checker_service.rb").to_s
+    Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded SmsPolicyCheckerService."
+  rescue LoadError => e
+    error_message = "[SmsPolicyCheckerConfig CRITICAL] Failed to load SmsPolicyCheckerService: #{e.message}. Configuration constants cannot be set."
+    Rails.logger.fatal error_message
+    raise LoadError, error_message # Halt boot
+  end
 
-    def self.load_yaml_file(filename)
-      path = CONFIG_BASE_PATH.join(filename)
-      unless File.exist?(path)
-        Rails.logger.error "[SmsPolicyCheckerConfig] Configuration file not found: #{path}"
-        return nil # Or raise an error if the file is critical
+  # --- 2. Define Configuration Loading Logic ---
+  module SmsPolicyCheckerApp
+    module ConfigLoader
+      CONFIG_BASE_PATH = Rails.root.join("config")
+
+      # Loads a YAML file.
+      # Returns nil if the file does not exist.
+      # Raises a critical error if the file exists but is malformed.
+      def self.load_yaml_file(filename)
+        path = CONFIG_BASE_PATH.join(filename)
+        return nil unless File.exist?(path)
+
+        begin
+          # Using permitted_classes: [] for strict loading of only core Ruby types.
+          # Add other classes like Time, Date explicitly if they are ever used in these YAMLs.
+          # aliases: true allows use of YAML anchors/aliases.
+          YAML.safe_load(File.read(path), permitted_classes: [], aliases: true)
+        rescue Psych::SyntaxError => e
+          critical_message = "[SmsPolicyCheckerConfig CRITICAL] Failed to parse YAML configuration file #{path}: #{e.message}"
+          Rails.logger.fatal critical_message
+          raise StandardError, critical_message # Halt boot for malformed YAML
+        end
       end
-      YAML.safe_load(File.read(path), permitted_classes: [ Symbol, Regexp ], aliases: true)
-    end
 
-    # --- Load Layer 1 Rules ---
-    begin
-      rules_yaml_content = File.read(CONFIG_BASE_PATH.join("sms_policy_checker_rules.yml"))
-      # Ensure SmsPolicy::RuleLoader is loaded before trying to use it.
-      # If app/helpers isn"t in autoload_paths during initializers, you might need an explicit require.
-      # For now, assuming Rails autoloading paths are configured to include app/helpers early enough,
-      # or that SmsPolicy::RuleLoader has been explicitly required.
-      if defined?(SmsPolicy::RuleLoader)
-        LAYER1_RULES = SmsPolicy::RuleLoader.load_rules(rules_yaml_content).freeze
-        Rails.logger.info "[SmsPolicyCheckerConfig DEBUG Initializer] Loaded LAYER1_RULES (names): #{LAYER1_RULES.map { |r| r['name'] }.inspect if LAYER1_RULES.is_a?(Array)}"
-        Rails.logger.info "[SmsPolicyCheckerConfig DEBUG Initializer] First rule details: #{LAYER1_RULES.first.inspect if LAYER1_RULES.is_a?(Array) && !LAYER1_RULES.empty?}"
-        Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded and compiled #{LAYER1_RULES.count} Layer 1 rules."
+      # --- Load Layer 1 Rules (Critical) ---
+      begin
+        rules_file_path = CONFIG_BASE_PATH.join("sms_policy_checker_rules.yml")
+        unless File.exist?(rules_file_path)
+          critical_message = "[SmsPolicyCheckerConfig CRITICAL] Layer 1 rules file not found: #{rules_file_path}"
+          Rails.logger.fatal critical_message
+          raise Errno::ENOENT, critical_message # Halt boot
+        end
+        rules_yaml_content = File.read(rules_file_path)
+        # SmsPolicy::RuleLoader.load_rules will raise on internal parsing or validation errors.
+        LAYER1_RULES_TEMP = SmsPolicy::RuleLoader.load_rules(rules_yaml_content).freeze
+
+        Rails.logger.debug "[SmsPolicyCheckerConfig] Loaded LAYER1_RULES (names): #{LAYER1_RULES_TEMP.map { |r| r['name'] }.inspect if LAYER1_RULES_TEMP.is_a?(Array)}"
+        Rails.logger.debug "[SmsPolicyCheckerConfig] First L1 rule details: #{LAYER1_RULES_TEMP.first.inspect if LAYER1_RULES_TEMP.is_a?(Array) && !LAYER1_RULES_TEMP.empty?}"
+        Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded and compiled #{LAYER1_RULES_TEMP.count} Layer 1 rules."
+      rescue StandardError => e # Catches errors from File.read or SmsPolicy::RuleLoader.load_rules
+        critical_message = "[SmsPolicyCheckerConfig CRITICAL] Failed to load Layer 1 rules from #{rules_file_path}: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}"
+        Rails.logger.fatal critical_message
+        raise StandardError, critical_message # Halt boot
+      end
+
+      # --- Load LLM Configuration (File optional, but malformed file is critical) ---
+      LLM_CONFIG_FROM_FILE = load_yaml_file("sms_policy_checker_llm_config.yml") # Raises on parse error
+      LLM_CONFIG_TEMP = (LLM_CONFIG_FROM_FILE || { "characteristics" => [] }).freeze # Default if file not found
+
+      if LLM_CONFIG_FROM_FILE.nil?
+        Rails.logger.warn "[SmsPolicyCheckerConfig] sms_policy_checker_llm_config.yml not found. Using default empty LLM configuration."
+      elsif LLM_CONFIG_TEMP["characteristics"].empty?
+        Rails.logger.warn "[SmsPolicyCheckerConfig] LLM configuration loaded, but 'characteristics' array is empty."
       else
-        Rails.logger.error "[SmsPolicyCheckerConfig] SmsPolicy::RuleLoader not defined. Cannot load Layer 1 rules."
-        LAYER1_RULES = [].freeze
+        Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded LLM configuration for #{LLM_CONFIG_TEMP["characteristics"].count} characteristics."
       end
-    rescue Errno::ENOENT # File not found
-      Rails.logger.error "[SmsPolicyCheckerConfig] FAILED to load Layer 1 rules: sms_policy_checker_rules.yml not found."
-      LAYER1_RULES = [].freeze
-    rescue StandardError => e
-      Rails.logger.error "[SmsPolicyCheckerConfig] FAILED to load Layer 1 rules: #{e.class} - #{e.message}\n#{e.backtrace.first(5).join("\n")}"
-      LAYER1_RULES = [].freeze # Fallback to empty rules
-      # Consider raising the error to halt boot if rules are critical:
-      # raise "Critical Error: Could not load sms_policy_checker_rules.yml - #{e.message}"
-    end
 
-    # --- Load LLM Configuration ---
-    begin
-      LLM_CONFIG = load_yaml_file("sms_policy_checker_llm_config.yml")&.freeze || { "characteristics" => [] }.freeze
-      if LLM_CONFIG["characteristics"].empty? && File.exist?(CONFIG_BASE_PATH.join("sms_policy_checker_llm_config.yml"))
-         Rails.logger.warn "[SmsPolicyCheckerConfig] LLM configuration loaded, but 'characteristics' array is empty or file was problematic."
-      elsif !LLM_CONFIG["characteristics"].empty?
-        Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded LLM configuration for #{LLM_CONFIG["characteristics"].count} characteristics."
+      # --- Load Thresholds (File optional, but malformed file is critical) ---
+      DEFAULT_THRESHOLDS = {
+        "FINAL_THRESHOLD_FLAG" => 0.99, # Default if not specified in YAML
+        "FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK" => 0.99, # Default if not specified
+        "CRITICAL_FAILURE_THRESHOLDS" => {} # Default to empty hash
+      }.freeze
+
+      thresholds_from_file = load_yaml_file("sms_policy_checker_thresholds.yml") # Raises on parse error
+
+      # Start with defaults, then deep_merge loaded values. Loaded values take precedence.
+      # Ensures all keys in DEFAULT_THRESHOLDS are present.
+      THRESHOLDS_TEMP = DEFAULT_THRESHOLDS.deep_merge(thresholds_from_file || {}).freeze
+
+      # Ensure CRITICAL_FAILURE_THRESHOLDS is a hash, even if YAML tried to make it something else.
+      unless THRESHOLDS_TEMP["CRITICAL_FAILURE_THRESHOLDS"].is_a?(Hash)
+        Rails.logger.warn "[SmsPolicyCheckerConfig] CRITICAL_FAILURE_THRESHOLDS in thresholds file was not a Hash. Overriding with empty Hash. Check config file."
+        # Re-create THRESHOLDS_TEMP with CRITICAL_FAILURE_THRESHOLDS as a Hash
+        # This is a bit clunky; ideally, schema validation would catch this earlier if complex.
+        # For now, directly ensure it's a hash.
+        modifiable_thresholds = THRESHOLDS_TEMP.dup # Unfreeze for modification
+        modifiable_thresholds["CRITICAL_FAILURE_THRESHOLDS"] = {} # Force it to be a hash
+        THRESHOLDS_TEMP = modifiable_thresholds.freeze
+      end
+
+      if thresholds_from_file.nil?
+        Rails.logger.warn "[SmsPolicyCheckerConfig] sms_policy_checker_thresholds.yml not found. Using default threshold values."
       else
-        Rails.logger.warn "[SmsPolicyCheckerConfig] sms_policy_checker_llm_config.yml not found or empty. Using default empty LLM config."
+        Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded and merged thresholds."
+        # Log if any of the main threshold keys were defaulted
+        DEFAULT_THRESHOLDS.each_key do |key|
+          unless thresholds_from_file.key?(key)
+            Rails.logger.warn "[SmsPolicyCheckerConfig] Threshold key '#{key}' was not found in yml, using default: #{DEFAULT_THRESHOLDS[key]}"
+          end
+        end
       end
-    rescue StandardError => e
-      Rails.logger.error "[SmsPolicyCheckerConfig] FAILED to load LLM config: #{e.class} - #{e.message}"
-      LLM_CONFIG = { "characteristics" => [] }.freeze # Fallback
-    end
+      Rails.logger.debug "[SmsPolicyCheckerConfig] Final Thresholds: #{THRESHOLDS_TEMP.inspect}"
 
-    # --- Load Thresholds ---
-    begin
-      THRESHOLDS = load_yaml_file("sms_policy_checker_thresholds.yml")&.freeze || {}.freeze
-      required_threshold_keys = [ "FINAL_THRESHOLD_FLAG", "FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK", "CRITICAL_FAILURE_THRESHOLDS" ]
-      missing_thresholds = required_threshold_keys.reject { |key| THRESHOLDS.key?(key) }
 
-      if THRESHOLDS.empty? && File.exist?(CONFIG_BASE_PATH.join("sms_policy_checker_thresholds.yml"))
-        Rails.logger.warn "[SmsPolicyCheckerConfig] Thresholds configuration loaded but seems empty or file was problematic."
-      elsif !missing_thresholds.empty?
-        Rails.logger.warn "[SmsPolicyCheckerConfig] Thresholds configuration is missing essential keys: #{missing_thresholds.join(", ")}. Using defaults for missing keys."
-        # Provide safe defaults if keys are missing
-        default_thresholds = {
-          "FINAL_THRESHOLD_FLAG" => 0.99,
-          "FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK" => 0.99,
-          "CRITICAL_FAILURE_THRESHOLDS" => {}
-        }
-        THRESHOLDS = default_thresholds.merge(THRESHOLDS) # Merge loaded with defaults, loaded takes precedence
-      elsif !THRESHOLDS.empty?
-        Rails.logger.info "[SmsPolicyCheckerConfig] Successfully loaded thresholds."
-      else
-         Rails.logger.warn "[SmsPolicyCheckerConfig] sms_policy_checker_thresholds.yml not found or empty. Using default empty thresholds."
-         THRESHOLDS = { # Ensure critical_failure_thresholds is at least an empty hash
-          "FINAL_THRESHOLD_FLAG" => 0.99,
-          "FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK" => 0.99,
-          "CRITICAL_FAILURE_THRESHOLDS" => {}
-        }.freeze
+      # --- 3. Assign Configurations to SmsPolicyCheckerService Constants ---
+      # This step is critical. If SmsPolicyCheckerService isn't defined, we can't proceed.
+      unless defined?(SmsPolicyCheckerService)
+        critical_message = "[SmsPolicyCheckerConfig CRITICAL] SmsPolicyCheckerService class not defined when attempting to set configuration constants. This should have been caught by require_dependency."
+        Rails.logger.fatal critical_message
+        raise NameError, critical_message # Halt boot
       end
+
+      SmsPolicyCheckerService.const_set("LAYER1_RULES", LAYER1_RULES_TEMP)
+      SmsPolicyCheckerService.const_set("LLM_CONFIG", LLM_CONFIG_TEMP)
+      SmsPolicyCheckerService.const_set("THRESHOLDS", THRESHOLDS_TEMP)
+      # CRITICAL_FAILURE_THRESHOLDS is derived from THRESHOLDS inside SmsPolicyCheckerService or taken directly if defined:
+      # It's already ensured to be a Hash within THRESHOLDS_TEMP by the logic above.
+      SmsPolicyCheckerService.const_set("CRITICAL_FAILURE_THRESHOLDS", THRESHOLDS_TEMP.fetch("CRITICAL_FAILURE_THRESHOLDS", {}))
+
+      Rails.logger.info "[SmsPolicyCheckerConfig] All configurations successfully loaded and set on SmsPolicyCheckerService."
+
     rescue StandardError => e
-      Rails.logger.error "[SmsPolicyCheckerConfig] FAILED to load thresholds: #{e.class} - #{e.message}"
-      THRESHOLDS = {
-          "FINAL_THRESHOLD_FLAG" => 0.99,
-          "FINAL_THRESHOLD_FLAG_FOR_L1_FALLBACK" => 0.99,
-          "CRITICAL_FAILURE_THRESHOLDS" => {}
-        }.freeze # Fallback
-    end
-
-    # Make configurations available as constants within SmsPolicyCheckerService
-    # This requires SmsPolicyCheckerService class to be loaded.
-    # Rails autoloading should handle this. If not, ensure `app/services` is in `$LOAD_PATH`
-    # and `SmsPolicyCheckerService` is loaded before this initializer, or use a different mechanism.
-    if defined?(SmsPolicyCheckerService)
-      SmsPolicyCheckerService.const_set("LAYER1_RULES", LAYER1_RULES)
-      SmsPolicyCheckerService.const_set("LLM_CONFIG", LLM_CONFIG)
-      SmsPolicyCheckerService.const_set("THRESHOLDS", THRESHOLDS)
-      # Derived constant for convenience, ensuring CRITICAL_FAILURE_THRESHOLDS is always a hash
-      critical_thresholds = THRESHOLDS.is_a?(Hash) ? THRESHOLDS.fetch("CRITICAL_FAILURE_THRESHOLDS", {}) : {}
-      SmsPolicyCheckerService.const_set("CRITICAL_FAILURE_THRESHOLDS", critical_thresholds)
-
-      Rails.logger.info "[SmsPolicyCheckerConfig] Configurations set as constants on SmsPolicyCheckerService."
-    else
-      Rails.logger.error "[SmsPolicyCheckerConfig] SmsPolicyCheckerService class not defined. Cannot set configuration constants on it."
-      # You might store them in a global AppConfig module instead if the service class isn"t available yet.
-      # Example:
-      # module AppConfig; end
-      # AppConfig.const_set("SMS_POLICY_LAYER1_RULES", LAYER1_RULES)
-      # ... and then SmsPolicyCheckerService would reference AppConfig::SMS_POLICY_LAYER1_RULES
+      # Catch any unexpected error during the ConfigLoader module's execution.
+      critical_message = "[SmsPolicyCheckerConfig CRITICAL] An unexpected error occurred during configuration loading: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(10).join("\n")}"
+      Rails.logger.fatal critical_message
+      raise StandardError, critical_message # Halt boot
     end
   end
+
+# Catch any exception during the entire initializer file execution, though specific critical errors should be raised explicitly.
+rescue StandardError => e
+  Rails.logger.fatal "[SmsPolicyCheckerConfig CRITICAL] Unrecoverable error during SmsPolicyCheckerConfig initialization: #{e.message}"
+  # Depending on Rails version and load order, raising here might not always be caught by Rails' boot process
+  # in a way that prevents server start, but it will log loudly.
+  # For critical safety, the explicit raises within the module are more reliable for halting.
+  raise
 end

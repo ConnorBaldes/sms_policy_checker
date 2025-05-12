@@ -1,6 +1,4 @@
 # Configuration for Layer 2 LLM Policy Characteristics
-# See README.md Section 8 and 5.1.1.
-#
 # characteristics:
 #   - name: (String) e.g., PhishingAndDeceptiveURLs
 #     description: (String) For documentation
@@ -14,63 +12,483 @@
 #                      Ensure it asks for JSON output with confidence_score and rationale.
 
 characteristics:
-  - name: "PhishingAndDeceptiveURLs"
-    description: "Focuses on attempts to fraudulently obtain sensitive information or use of misleading/harmful URLs."
+  - name: "MisleadingSenderIdentity"
+    description: "Assesses if the sender is not clearly or accurately identified, or if there are signs of impersonation."
     knowledge_source_context: >
-      Phishing is any attempt to deceptively acquire sensitive information such as usernames,
-      passwords, credit card details, or other personal data. Messages containing links that
-      mislead users about their destination, or links to sites known for malware or social
-      engineering, are prohibited. (Source: Twilio AUP, Carrier Policies)
-    relevancy_skip_conditions:
-      - type: "skip_if_no_urls"
-    prompt_template: | # Using YAML literal style for multi-line string
-      Analyze the following SMS message content and associated information for '%{characteristic_name}' indicators.
-      Message Body: '%{message_body}'
-      Associated URL Signals (SafeBrowse): %{safe_browse_results}
+      Messages must clearly identify the sender (the party that obtained opt-in). Falsifying sender identity or misleading others as to the origin of communications is prohibited. (Source: Twilio Messaging Policy, Twilio AUP)
+    relevancy_skip_conditions: [] # Always relevant
+    prompt_template: |
+      Analyze the following SMS message content for 'MisleadingSenderIdentity' indicators based on the provided policy context.
       Policy Context for %{characteristic_name}:
       "%{policy_context_snippet}"
 
-      Based on all the above, assess the likelihood that this message violates
-      the '%{characteristic_name}' policy and provide a confidence score (a number between 0.0 and 1.0)
-      and a brief textual rationale for your assessment.
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above, assess the likelihood that this message violates the '%{characteristic_name}' policy by failing to clearly identify the sender or by attempting impersonation.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "FalseOrInaccurateContent"
+    description: "Evaluates if the content is verifiably false, misleading, or could deceive a recipient."
+    knowledge_source_context: >
+      Transmitting content or communications that are false, inaccurate, or deceptive is prohibited. This includes misinformation confirmed to be criminal or posing a public threat. (Source: Twilio AUP)
+    relevancy_skip_conditions: [] # Always relevant
+    prompt_template: |
+      Analyze the following SMS message content for 'FalseOrInaccurateContent' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Associated URL Signals (SafeBrowse): %{safe_browse_results}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above, assess the likelihood that this message contains verifiably false, inaccurate, or deceptive information.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
 
   - name: "HatefulContent"
-    description: "Screens for content promoting hate, discrimination, disparagement, or violence against protected groups."
+    description: "Screens for content promoting hate, discrimination, disparagement, or violence against protected groups (Corresponds to SHAFT-H)."
     knowledge_source_context: >
-      Content that promotes, incites, or facilitates hate speech, violence, discrimination,
-      harassment, or disparagement on the basis of race, ethnicity, nationality, religion,
-      gender, sexual orientation, disability, or any other protected characteristic is strictly
-      prohibited. (Source: Twilio AUP, SHAFT-H policies)
-    # relevancy_skip_conditions: None defined here, so always considered relevant for LLM if Layer 1 passes.
+      Content that is hateful or encourages hatred or violence against individuals or groups based on attributes like race, ethnicity, religion, gender, sexual orientation, disability, etc., is prohibited. This includes communications from hate groups. (Source: Twilio AUP, Twilio Messaging Policy)
+    relevancy_skip_conditions: [] # Always relevant
     prompt_template: |
-      Analyze the following SMS message content and associated information for '%{characteristic_name}' indicators.
-      Message Body: '%{message_body}'
-      Associated Tone/Sentiment Signals (Perspective API): %{perspective_scores}
+      Analyze the following SMS message content for 'HatefulContent' indicators based on the provided policy context.
       Policy Context for %{characteristic_name}:
       "%{policy_context_snippet}"
 
-      Based on all the above, assess the likelihood that this message constitutes a violation
-      of the '%{characteristic_name}' policy.
+      Message Body:
+      '''
+      %{message_body}
+      '''
 
-  # ... Add definitions for all 19 characteristics from README Section 5.1.1 ...
+      Auxiliary Analysis Signals:
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above, assess the likelihood that this message constitutes Hateful Content.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "ServiceInterferenceOrFilterEvasion"
+    description: "Identifies tactics used specifically to evade detection systems or interfere with service operations (distinct from general content evasion patterns addressed by AdvancedContentEvasionTactics)."
+    knowledge_source_context: >
+      Do not use services to interfere with or negatively impact service operations or third-party networks. Do not attempt to bypass, exploit, defeat, or disable limitations or restrictions, including security mechanisms or filtering capabilities. Content designed to intentionally evade filters is prohibited. Examples include intentionally misspelled words or non-standard opt-out phrases specifically created to evade detection. Spreading similar messages across many numbers (snowshoeing) to evade detection is also prohibited. (Source: Twilio AUP, Twilio Messaging Policy)
+    relevancy_skip_conditions: [] # Always relevant
+    prompt_template: |
+      Analyze the following SMS message content for 'ServiceInterferenceOrFilterEvasion' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Based on the message structure and content, are there specific tactics employed that seem designed to interfere with automated systems or evade content filters (e.g., unusual character usage beyond simple misspellings, abnormal message structure, filter probe-like content, evidence of snowshoeing if detectable from single message patterns)? This is distinct from general spam or unwanted content.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "SHAFT_Sex_AdultContent"
+    description: "Checks for explicit adult content, themes, or solicitation inappropriate for general SMS or violating SHAFT-S policies."
+    knowledge_source_context: >
+      SHAFT-S policies prohibit content that is overly sexual, depicts or describes sexual acts in a graphic or explicit manner, promotes escort services, prostitution, or other sexual services. This includes unsolicited sexual content, content that exploits, abuses, or endangers children, and content that is otherwise obscene or pornographic under applicable law. Content should not be harmful, unwanted, inappropriate, or objectionable. (Source: General SHAFT guidelines, Twilio Messaging Policy, Twilio AUP)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'SHAFT_Sex_AdultContent' violations based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above, assess the likelihood that this message violates the '%{characteristic_name}' policy by containing prohibited sexual content.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "SHAFT_Alcohol_ProhibitedPromotion"
+    description: "Assesses promotions of alcohol for compliance with age-gating, local laws, and carrier restrictions (SHAFT-A)."
+    knowledge_source_context: >
+      Messages related to alcohol must comply with all applicable laws of the jurisdiction in which the message recipient lives. This includes ensuring no message recipient is younger than the legal age of consent based on where the recipient is located and that the message content complies with all applicable communications industry guidelines or standards. (Source: Twilio Messaging Policy - Age and Geographic Gating)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'SHAFT_Alcohol_ProhibitedPromotion' violations based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above, does this message promote alcohol in a way that seems non-compliant with typical age-gating requirements or local laws (e.g., unsolicited, targeting minors, overly aggressive promotion)?
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "SHAFT_Firearms_IllegalPromotion"
+    description: "Evaluates promotions or sales of firearms, particularly those that are illegal, unregulated, or under high scrutiny (SHAFT-F)."
+    knowledge_source_context: >
+      Messages related to firearms must comply with all applicable laws and communications industry guidelines. This includes restrictions on promoting the sale of illegal or unregulated firearms, ammunition, and certain accessories. Attempts to bypass legal purchasing processes or sending to underage recipients are prohibited. (Source: Twilio Messaging Policy - Age and Geographic Gating, General SHAFT guidelines)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'SHAFT_Firearms_IllegalPromotion' violations based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+      - Associated URL Signals (SafeBrowse): %{safe_browse_results}
+
+      Based on all the above, does this message promote firearms in a way that seems illegal, unregulated, or irresponsible (e.g., offering sales without background checks, selling prohibited items, or targeting inappropriate audiences)?
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "SHAFT_Tobacco_ProhibitedPromotion"
+    description: "Screens promotions of tobacco, nicotine, or vaping products for compliance with age-gating, local laws, and carrier restrictions (SHAFT-T)."
+    knowledge_source_context: >
+      Messages related to tobacco or vaping products must comply with all applicable laws, including age-gating and promotional restrictions for the recipient's jurisdiction. Proof of measures to ensure compliance with these restrictions may be required. (Source: Twilio Messaging Policy - Age and Geographic Gating)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'SHAFT_Tobacco_ProhibitedPromotion' violations based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above, does this message promote tobacco or vaping products in a non-compliant manner (e.g., without age verification, violating local advertising laws)?
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "ProhibitedSubstances_CannabisCBDKratom"
+    description: "Specifically checks for content related to Cannabis, CBD, or Kratom, which have stringent carrier restrictions."
+    knowledge_source_context: >
+      Messages related to cannabis (including CBD products derived from cannabis or marijuana) are generally not allowed in the United States as federal laws prohibit its sale, even if some states have legalized it. Messages related to CBD products may also be impermissible based on state laws. Twilio defines a cannabis message as any message which relates to the marketing or sale of a cannabis product. (Source: Twilio Messaging Policy - Content We Do Not Allow)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'ProhibitedSubstances_CannabisCBDKratom' violations based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities} # May pick up "CBD", "cannabis", "kratom"
+      - Text Moderation Signals (Google NL API): %{moderation_signals} # May flag "/Illicit Drugs" or related
+
+      Based on all the above, does this message relate to the marketing or sale of cannabis, CBD, or kratom products, which are generally prohibited for SMS in the US?
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
 
   - name: "RegulatedPharmaceuticals_PrescriptionOffers"
-    description: "Identifies offers for prescription medications or other regulated pharmaceuticals."
+    description: "Identifies offers for prescription medications or other regulated pharmaceuticals not permissible over-the-counter or via unsolicited SMS."
     knowledge_source_context: >
-      The unsolicited promotion or sale of prescription drugs or federally regulated pharmaceuticals
-      is prohibited. Messages must comply with all applicable laws regarding pharmaceutical advertising.
-      (Source: Carrier Policies, FDA guidelines)
+      Offers for prescription medication that cannot legally be sold over-the-counter are prohibited in the United States via SMS. (Source: Twilio Messaging Policy - Content We Do Not Allow)
     relevancy_skip_conditions:
       - type: "skip_if_no_specific_entities"
-        entity_type: "CONSUMER_GOOD" # Assuming NL API might tag drugs as CONSUMER_GOOD or a more specific type like 'DRUG' if available
-        # Note: Entity types from Google NL API need to be mapped carefully.
-        # Might need to check for multiple entity types or refine this condition.
+        entity_type: "CONSUMER_GOOD" # Placeholder, refine based on NL API output for drug names (e.g., "MEDICINE", "OTHER")
     prompt_template: |
-      Analyze the following SMS message content for '%{characteristic_name}' indicators.
-      Message Body: '%{message_body}'
-      Detected Entities (Cloud NL API): %{nl_entities}
+      Analyze the following SMS message content for 'RegulatedPharmaceuticals_PrescriptionOffers' indicators based on the provided policy context.
       Policy Context for %{characteristic_name}:
       "%{policy_context_snippet}"
 
-      Based on the message and detected entities (especially any drug names), assess if this message
-      violates the '%{characteristic_name}' policy.
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on the message and detected entities (especially any drug names, offers for medication requiring a prescription, or links to online pharmacies selling prescription drugs), assess if this message violates the '%{characteristic_name}' policy.
+      If it clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "FraudulentOrMaliciousContent"
+    description: "Detects broader fraudulent claims, scams, or content indicative of malicious intent beyond specific phishing attempts."
+    knowledge_source_context: >
+      Fraudulent messages or malicious content, such as malware or viruses, are prohibited. Content should not be illegal, harmful, unwanted, inappropriate, objectionable, or pose a threat to the public. (Source: Twilio Messaging Policy, Twilio AUP)
+    relevancy_skip_conditions: [] # Generally always relevant
+    prompt_template: |
+      Analyze the following SMS message content for 'FraudulentOrMaliciousContent' indicators (beyond typical phishing, which is covered by PhishingAndDeceptiveURLs) based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Associated URL Signals (SafeBrowse): %{safe_browse_results} # Malware/unwanted software flags are key
+      - Text Moderation Signals (Google NL API): %{moderation_signals} # "Dangerous Content" may be relevant
+
+      Based on all the above, assess the likelihood that this message contains general fraudulent claims, scams (not simple phishing), or indicates distribution of malicious content like malware or viruses.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "HighRiskFinancialServices"
+    description: "Screens for promotions of high-risk financial products like payday loans, debt relief programs with questionable claims, or certain types of cryptocurrency offerings."
+    knowledge_source_context: >
+      Promotions for high-risk financial services such as payday loans, short-term high-interest loans, debt relief services with misleading claims, or highly speculative financial products (e.g., certain cryptocurrencies or ICOs without proper disclosures) are often restricted or prohibited by carriers or may be considered harmful or deceptive. (Source: General Carrier Guidelines, Implied by Twilio's 'illegal, harmful, unwanted, deceptive' AUP clauses)
+    relevancy_skip_conditions: [] # Entities like "loan", "crypto", "debt relief" could be used later for relevancy.
+    prompt_template: |
+      Analyze the following SMS message content for 'HighRiskFinancialServices' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals} # e.g. if "/Finance" flagged along with deceptive language patterns.
+
+      Based on all the above, assess if this message promotes high-risk financial services such as payday loans, problematic debt relief offers, or highly speculative/unregulated investments.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "ProhibitedAffiliateMarketing"
+    description: "Identifies messages primarily focused on third-party lead generation or affiliate marketing schemes that are often restricted."
+    knowledge_source_context: >
+      Messages whose primary purpose is affiliate marketing or third-party lead generation, especially if unsolicited, lacking clear sender identification, offering little direct value to the recipient, or using deceptive means, are often restricted or blocked. (Source: General Carrier Guidelines, Implied by Twilio's 'unwanted', 'deceptive' AUP clauses)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'ProhibitedAffiliateMarketing' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Associated URL Signals (SafeBrowse): %{safe_browse_results} # Affiliate links might sometimes be flagged or lead to spammy domains.
+
+      Based on the message content and any URLs, assess if the primary purpose seems to be prohibited or deceptive affiliate marketing or third-party lead generation. Consider if the offer is clear, if the sender is identifiable, and if the message provides genuine value or seems purely for lead capture/commission.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "RestrictedDebtCollection"
+    description: "Assesses messages related to third-party debt collection for compliance with regulations and carrier policies."
+    knowledge_source_context: >
+      Third-party debt collection messages must comply with all applicable laws (e.g., FDCPA in the US) and carrier guidelines. This includes clear identification of the debt collector, the original creditor, information about the debt, avoidance of threats, harassment, or deceptive tactics, and respecting opt-out requests. (Source: General Carrier Guidelines, Legal Best Practices)
+    relevancy_skip_conditions: [] # NL Entities might pick up "debt", "collection agency", etc.
+    prompt_template: |
+      Analyze the following SMS message content for 'RestrictedDebtCollection' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals} # e.g., if "/Legal" or "Toxic" is flagged with debt language.
+
+      Based on the message content, assess if it appears to be a third-party debt collection message that might be using restricted, harassing, deceptive, or non-compliant tactics. Consider if required disclosures are missing.
+      If the message clearly does NOT violate this policy (or is not debt collection), the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "GetRichQuickSchemes"
+    description: "Filters promotions for unrealistic financial schemes, work-from-home scams, or pyramid schemes."
+    knowledge_source_context: >
+      Messages promoting get-rich-quick schemes, unrealistic financial gains, work-from-home offers with exaggerated or unverified income claims, or pyramid schemes are prohibited as they are often fraudulent or deceptive. (Source: Implied by Twilio AUP - 'deceptive', 'fraudulent messages', 'harmful')
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'GetRichQuickSchemes' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Based on the message content, assess if it promotes a get-rich-quick scheme, unrealistic financial promises, "guaranteed" high returns with low effort, or a potential pyramid/MLM scam.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "GamblingPromotions"
+    description: "Checks for the promotion of gambling content, which is highly regulated and often restricted."
+    knowledge_source_context: >
+      Promotion of gambling content (e.g., casino games, sports betting, lotteries) via SMS is highly regulated and often restricted by carriers unless explicitly approved, geo-fenced, age-gated, and compliant with all jurisdictional laws. (Source: Twilio Messaging Policy - Age and Geographic Gating, General Carrier Guidelines)
+    relevancy_skip_conditions: []
+    prompt_template: |
+      Analyze the following SMS message content for 'GamblingPromotions' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Detected Entities (Google NL API): %{nl_entities}
+      - Text Moderation Signals (Google NL API): %{moderation_signals} # Might flag "/Gambling" or related.
+
+      Based on all the above, assess if this message promotes or facilitates gambling in a restricted or non-compliant manner (e.g., unsolicited, lacking age verification disclaimers, linking to unregulated sites).
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "PhishingAndDeceptiveURLs"
+    description: "Focuses on attempts to fraudulently obtain sensitive information or the use of misleading/harmful URLs."
+    knowledge_source_context: >
+      Phishing is any attempt to deceptively acquire sensitive information such as usernames, passwords, credit card details, or other personal data. Messages containing links that mislead users about their destination, or links to sites known for malware, social engineering, or other threats, are prohibited. (Source: Twilio AUP, Carrier Policies, Twilio Messaging Policy)
+    relevancy_skip_conditions:
+      - type: "skip_if_no_urls"
+    prompt_template: |
+      Analyze the following SMS message content for 'PhishingAndDeceptiveURLs' indicators based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Auxiliary Analysis Signals:
+      - Associated URL Signals (SafeBrowse): %{safe_browse_results}
+      - Text Moderation Signals (Google NL API): %{moderation_signals}
+
+      Based on all the above (message language, urgency, URLs, SafeBrowse results, moderation flags), assess the likelihood that this message is a phishing attempt or uses deceptive/harmful URLs.
+      If the message clearly does NOT violate this policy, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale for your assessment, detailing which aspects of the message or signals contribute to your score.
+
+  - name: "ProhibitedPublicURLShorteners"
+    description: "Assesses the use of common public URL shorteners if not caught by Layer 1, as these are often flagged by carriers."
+    knowledge_source_context: >
+      The use of shared public URL shorteners (e.g., bit.ly, tinyurl) is often prohibited or restricted by carriers as they can obscure the destination URL and are frequently used in spam or phishing. Branded or private shorteners are generally preferred if shorteners are used at all. (Source: General Carrier Guidelines, Implied by Twilio's filter evasion policies)
+    relevancy_skip_conditions:
+      - type: "skip_if_no_urls"
+    prompt_template: |
+      Analyze the following SMS message content for the use of 'ProhibitedPublicURLShorteners' based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Review any URLs present in the message. Based on the URL domains, assess if any of them are common, shared public URL shorteners (like bit.ly, tinyurl.com, t.co, goo.gl, is.gd, ow.ly etc.). This check is especially important if not caught by simpler Layer 1 rules.
+      If the message clearly does NOT violate this policy (no such shorteners used), the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES violate this policy (a prohibited public shortener is identified), the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale listing the identified shortener(s) if any.
+
+  - name: "AdvancedContentEvasionTactics"
+    description: "Uses LLM capabilities to detect nuanced content evasion techniques (e.g., subtle misspellings, unusual Unicode, complex rephrasing) that might bypass simpler Layer 1 regex/keyword checks."
+    knowledge_source_context: >
+      Content designed to intentionally evade filters, such as using non-standard spellings (leet speak, added symbols), excessive special characters, zero-width characters, unusual Unicode, or other obfuscation techniques to hide prohibited words or intent, is prohibited. This includes snowshoeing, which is spreading similar messages across many numbers to evade detection. (Source: Twilio Messaging Policy - Filtering Evasion, Twilio AUP)
+    relevancy_skip_conditions: [] # Always relevant
+    prompt_template: |
+      Analyze the following SMS message content for 'AdvancedContentEvasionTactics' based on the provided policy context.
+      Policy Context for %{characteristic_name}:
+      "%{policy_context_snippet}"
+
+      Message Body:
+      '''
+      %{message_body}
+      '''
+
+      Examine the message for subtle techniques that might be used to evade automated content filters. This includes, but is not limited to, unusual character substitutions (e.g., using Cyrillic 'а' for Latin 'a', symbols like '@' for 'a', '3' for 'e'), deliberate but subtle misspellings of sensitive words, use of zero-width spaces or other invisible characters, or overly complex rephrasing to obscure intent. Also consider if the message structure or phrasing seems designed to confuse automated systems.
+      If the message clearly does NOT employ such tactics, the confidence_score should be very low (e.g., 0.0 to 0.1).
+      If it clearly DOES employ such tactics, the confidence_score should be very high (e.g., 0.9 to 1.0).
+      For ambiguous cases, use intermediate scores.
+      Provide a confidence_score (a number between 0.0 and 1.0)
+      and a brief textual rationale detailing any observed evasion tactics.

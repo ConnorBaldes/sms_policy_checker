@@ -62,6 +62,8 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+  gem 'yard'
+  gem 'redcarpet' # A good Markdown processor for YARD
 end
 
 group :test do
