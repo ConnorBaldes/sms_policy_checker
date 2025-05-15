@@ -84,11 +84,8 @@
   patterns:
     # THIS LIST MUST BE CAREFULLY CURATED AND MAINTAINED.
     # Examples (use with extreme caution, these are offensive terms for detection purposes ONLY):
-    - 'n[i1]gg[e3]r' # (Using common leetspeak variations)
-    - 'k[i1]k[e3]'
-    - 'f[a4]gg[o0]t'
-    - 'white power now'
-    - 'kill all [group]' # (Requires a list of targeted groups if done by L1)
+    - 'SEVERE_HATE_SPEECH' # (Using common leetspeak variations)
+ # (Requires a list of targeted groups if done by L1)
     # For L1, focus on self-contained, universally recognized severe slurs.
     # Due to the sensitivity and complexity, this list will be very short and explicit.
   mapped_policy_category: "HatefulContent"
@@ -100,8 +97,8 @@
   description: "Detects terms often associated with hate or disparagement but might require more context."
   type: "keyword"
   patterns:
-    - 'inferior race' # (Example, list needs careful curation)
-    - 'deport all cats'
+    - 'HATE_SPEECH' # (Example, list needs careful curation)
+
   mapped_policy_category: "HatefulContent"
   individual_confidence: 0.75
   is_early_exit_rule: false
@@ -113,10 +110,7 @@
   patterns:
     # THIS LIST MUST BE CAREFULLY CURATED.
     # Examples (offensive terms for detection purposes ONLY):
-    - 'child porn'
-    - 'rape fantasy'
-    - 'buy sex slaves'
-    - 'gangbang invite'
+    - 'SEX_EXTREME_EXPLICIT'
   mapped_policy_category: "SHAFT_Sex_AdultContent" # Maps to L2 characteristic
   individual_confidence: 1.0
   is_early_exit_rule: true
@@ -126,11 +120,7 @@
   description: "Detects explicit sexual terms that are highly problematic but might not warrant immediate block without context."
   type: "keyword"
   patterns:
-    - 'hardcore sex'
-    - 'explicit video'
-    - 'live nude cams'
-    - 'adult XXX movies'
-    - 'escort service available'
+    - 'SEX_EXPLICIT'
   mapped_policy_category: "SHAFT_Sex_AdultContent"
   individual_confidence: 0.85
   is_early_exit_rule: false
